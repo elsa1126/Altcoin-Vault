@@ -277,8 +277,10 @@
             }
             
             try {
-                const headers = {};
-                if(cloudKey) headers['X-Master-Key'] = cloudKey;
+                // 讀取時永遠帶 key：訪客用預設 key（已寫死在程式碼中），管理員用自己的 key
+                // 這樣私有 Bin 也能讀取，但沒有 Master Key 依然無法寫入
+                const readKey = cloudKey || DEFAULT_API_KEY;
+                const headers = { 'X-Master-Key': readKey };
 
                 const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin + "/latest", {
                     method: 'GET',
