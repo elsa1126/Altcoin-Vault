@@ -189,6 +189,14 @@
             }
         }
 
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-6 left-1/2 -translate-x-1/2 text-xs px-4 py-2 rounded-lg shadow-lg z-50 transition-all ${ type === 'success' ? 'bg-green-600/90 text-white' : 'bg-red-600/90 text-white' }`;
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
         function saveSyncConfig() {
             const binInput = document.getElementById('sync-bin');
             if (binInput) {
@@ -263,30 +271,45 @@
 
         async function fetchFromCloud(silent = false) {
             if(!silent) saveSyncConfig();
-            if(!cloudBin) return silent ? null : alert("請先填寫 Bin ID！");
+            if(!cloudBin) {
+                if(!silent) showToast('請先填寫 Bin ID！', 'error');
+                return;
+            }
             
-            if(!silent) document.getElementById('fetch-btn').innerText = "下載中...";
             try {
                 const headers = {};
                 if(cloudKey) headers['X-Master-Key'] = cloudKey;
 
-                const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
+                const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin + "/latest", {
                     method: 'GET',
                     headers: headers
                 });
                 const data = await res.json();
                 if(data.record) {
-                    userSettings = data.record;
+                    // 將雲端資料寫入 userSettings
+                    const cloudData = data.record;
+                    // 確保所有契種字段完整
+                    COIN_LIST.forEach(coin => {
+                        if (cloudData[coin]) {
+                            userSettings[coin] = {
+                                entry: cloudData[coin].entry || 0,
+                                target: cloudData[coin].target || 0,
+                                stopLoss: cloudData[coin].stopLoss || 0,
+                                isHolding: cloudData[coin].isHolding || false,
+                                lastManualUpdate: cloudData[coin].lastManualUpdate || 0,
+                                note: cloudData[coin].note || ''
+                            };
+                        }
+                    });
                     saveSettings();
                     renderCards();
-                    if(!silent) alert("✅ 成功從雲端強制讀取並更新了此裝置的資料！");
+                    if(!silent) showToast("✅ 已從雲端讀取最新資料！");
                 } else {
-                    if(!silent) alert("❌ 下載失敗：" + JSON.stringify(data));
+                    if(!silent) showToast("❌ 讀取失敗: " + (data.message || JSON.stringify(data)), 'error');
                 }
             } catch(e) { 
-                if(!silent) alert("❌ 網路請求錯誤：" + e); 
+                if(!silent) showToast("❌ 網路錯誤: " + e.message, 'error');
             }
-            if(!silent) document.getElementById('fetch-btn').innerText = "2. 從雲端強制讀取 ⬇️";
         }
 
         // 初始化設定
@@ -407,8 +430,10 @@
 
             container.innerHTML = '';
             sortedList.forEach(coin => {
-                const mkt = marketData[coin], set = userSettings[coin];
-                const isUp = mkt.change >= 0;
+                // 防魔：如果市場資料尚未載入就跳過，避免崩潰
+                const mkt = marketData[coin] || { price: 0, change: 0, vol: 0, src: '--' };
+                const set = userSettings[coin] || { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '' };
+                const isUp = Number(mkt.change) >= 0;
                 const priceColor = isUp ? 'text-green-400' : 'text-red-400';
                 
                 let distanceText = '';
