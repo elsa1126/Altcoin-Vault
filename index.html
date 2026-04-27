@@ -77,8 +77,8 @@
                         </div>
                         <div id="admin-tools" class="md:col-span-2 flex flex-col md:flex-row gap-2 hidden">
                             <button onclick="createCloudBin()" class="flex-1 py-2 text-xs bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-600/40 transition font-bold shadow-lg">1. 建立全新公開區塊 (Public Bin)</button>
-                            <button onclick="pushToCloud()" class="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition font-bold shadow-lg">強制覆蓋雲端 ⬆️</button>
-                            <button id="fetch-btn" onclick="fetchFromCloud()" class="flex-1 py-2 text-xs bg-green-600/20 text-green-400 border border-green-500/30 rounded hover:bg-green-600/40 transition font-bold shadow-lg">2. 從雲端強制讀取 ⬇️</button>
+                            <button id="push-btn" onclick="pushToCloud(true)" class="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition font-bold shadow-lg">強制上傳/覆蓋雲端 ⬆️</button>
+                            <button id="fetch-btn" onclick="fetchFromCloud(false)" class="flex-1 py-2 text-xs bg-green-600/20 text-green-400 border border-green-500/30 rounded hover:bg-green-600/40 transition font-bold shadow-lg">2. 從雲端強制讀取 ⬇️</button>
                         </div>
                     </div>
                     <div class="mt-4 text-[11px] text-slate-400 bg-slate-800/50 p-2 rounded leading-relaxed border border-slate-700/50">
@@ -123,7 +123,7 @@
         let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
 
         // 雲端同步與權限設定
-        const DEFAULT_BIN_ID = ''; // 🔥 部署前請將您的 Bin ID 貼在這裡，讓訪客一進網頁就能自動載入！
+        const DEFAULT_BIN_ID = '69ef9d4636566621a8fa2ae7'; // 公開雲端區塊 ID，訪客打開頁面即自動同步最新資料
         const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifIubFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
         const ADMIN_USER = 'a0983818451@gmail.com';
         const ADMIN_PASS = 'Jack09040904';
@@ -187,10 +187,11 @@
         }
 
         function saveSyncConfig() {
-            cloudKey = document.getElementById('sync-key').value.trim();
-            cloudBin = document.getElementById('sync-bin').value.trim();
-            localStorage.setItem('syncKey', cloudKey);
-            localStorage.setItem('syncBin', cloudBin);
+            const binInput = document.getElementById('sync-bin');
+            if (binInput) {
+                cloudBin = binInput.value.trim();
+                localStorage.setItem('syncBin', cloudBin);
+            }
             updateSyncStatus();
         }
 
@@ -215,8 +216,15 @@
             } catch(e) { alert("❌ 網路請求錯誤：" + e); }
         }
 
-        async function pushToCloud() {
-            if(!cloudKey || !cloudBin) return;
+        async function pushToCloud(isManual = false) {
+            if(!cloudKey || !cloudBin) {
+                if(isManual) alert("請先建立公開區塊或填寫 Bin ID！");
+                return;
+            }
+            
+            const pushBtn = document.getElementById('push-btn');
+            if (isManual && pushBtn) pushBtn.innerText = "上傳中...";
+
             try {
                 const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
                     method: 'PUT',
@@ -224,10 +232,17 @@
                     body: JSON.stringify(userSettings)
                 });
                 if(res.status === 401 || res.status === 403) {
-                    alert("更新失敗：授權碼 (Master Key) 錯誤！已為您登出。");
+                    alert("更新失敗：授權碼 (Master Key) 錯誤或無權限！已登出。");
                     toggleAdminLogin();
+                } else if (res.ok && isManual) {
+                    alert("✅ 成功同步至雲端最新狀態！");
                 }
-            } catch(e) { console.error("Cloud Error", e); }
+            } catch(e) { 
+                console.error("Cloud Error", e); 
+                if (isManual) alert("❌ 上傳失敗: " + e.message);
+            }
+
+            if (isManual && pushBtn) pushBtn.innerText = "強制上傳/覆蓋雲端 ⬆️";
         }
 
         async function fetchFromCloud(silent = false) {
@@ -324,7 +339,17 @@
                 userSettings[coin].lastManualUpdate = Date.now(); // 自動記錄更新時間
                 saveSettings();
                 renderCards();
-                pushToCloud();
+                
+                const indicator = document.getElementById('sync-status');
+                const oldText = indicator.innerText;
+                const oldClass = indicator.className;
+                indicator.className = "text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-500";
+                indicator.innerText = "正在上傳雲端...";
+                
+                pushToCloud(false).then(() => {
+                    indicator.className = oldClass;
+                    indicator.innerText = oldText;
+                });
             }
         }
 
