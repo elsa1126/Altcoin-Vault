@@ -53,25 +53,39 @@
         <div class="mb-5 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
             <details class="group">
                 <summary class="text-xs text-slate-400 font-bold cursor-pointer outline-none hover:text-white transition flex justify-between items-center list-none">
-                    <span class="flex items-center gap-2">☁️ 雲端跨裝置同步設定 (JSONBin)</span>
-                    <span id="sync-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500">尚未連接</span>
+                    <span class="flex items-center gap-2">⚙️ 系統設定與授權 (Admin)</span>
+                    <span id="sync-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500">訪客觀看模式</span>
                 </summary>
-                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800 pt-4">
-                    <div>
-                        <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">X-Master-Key (必填)</label>
-                        <input type="password" id="sync-key" placeholder="貼上您的 Master Key..." class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                <div class="mt-4 border-t border-slate-800 pt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">預設載入區域 (Bin ID)</label>
+                            <input type="text" id="sync-bin" placeholder="訪客預設會讀取此 Bin ID" class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <div>
+                                <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">管理員帳號</label>
+                                <input type="email" id="admin-user" placeholder="輸入帳號..." class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded" autocomplete="off">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">管理員密碼</label>
+                                <div class="flex gap-2">
+                                    <input type="password" id="admin-pass" placeholder="輸入密碼..." class="flex-1 text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded" autocomplete="off">
+                                    <button onclick="toggleAdminLogin()" id="login-btn" class="px-3 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded text-xs hover:bg-blue-600/40 transition font-bold">登入</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="admin-tools" class="md:col-span-2 flex flex-col md:flex-row gap-2 hidden">
+                            <button onclick="createCloudBin()" class="flex-1 py-2 text-xs bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-600/40 transition font-bold shadow-lg">1. 建立全新公開區塊 (Public Bin)</button>
+                            <button onclick="pushToCloud()" class="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition font-bold shadow-lg">強制覆蓋雲端 ⬆️</button>
+                            <button id="fetch-btn" onclick="fetchFromCloud()" class="flex-1 py-2 text-xs bg-green-600/20 text-green-400 border border-green-500/30 rounded hover:bg-green-600/40 transition font-bold shadow-lg">2. 從雲端強制讀取 ⬇️</button>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">Bin ID (區塊ID)</label>
-                        <input type="text" id="sync-bin" placeholder="首次使用請留空，點擊下方「建立」" class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
-                    </div>
-                    <div class="md:col-span-2 flex flex-col md:flex-row gap-2">
-                        <button onclick="createCloudBin()" class="flex-1 py-2 text-xs bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-600/40 transition font-bold shadow-lg">1. 首次使用：建立全新雲端區塊</button>
-                        <button onclick="pushToCloud()" class="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition font-bold shadow-lg">強制上傳到雲端 ⬆️</button>
-                        <button id="fetch-btn" onclick="fetchFromCloud()" class="flex-1 py-2 text-xs bg-green-600/20 text-green-400 border border-green-500/30 rounded hover:bg-green-600/40 transition font-bold shadow-lg">2. 從雲端強制下載 ⬇️</button>
-                    </div>
-                    <div class="text-[11px] text-slate-400 md:col-span-2 bg-slate-800/50 p-2 rounded leading-relaxed border border-slate-700/50">
-                        <span class="text-white font-bold">手機跨裝置同步教學：</span>先在電腦點擊「1. 建立全新雲端區塊」，會產生並自動填入一組 <span class="text-blue-400">Bin ID</span>。<br>接著當您用手機打開本網頁時，將相同的 <span class="text-yellow-400">Master Key</span> 與這組 <span class="text-blue-400">Bin ID</span> 填入，最後點擊「2. 從雲端強制下載」即可完成手機同步！<br><span class="text-slate-500">（完成連線後，不管是在電腦或手機修改進場價或是目標價，系統都會自動即時上傳到雲端）</span>
+                    <div class="mt-4 text-[11px] text-slate-400 bg-slate-800/50 p-2 rounded leading-relaxed border border-slate-700/50">
+                        <span class="text-white font-bold">💡 如何分享給別人觀看？</span><br>
+                        先解鎖編輯狀態，點選「1. 建立全新公開區塊」取得一組 <span class="text-blue-400">Bin ID</span>。<br>
+                        然後用文字編輯器打開這份 <code>index.html</code> 檔案，將大約第 112 行的 <code>DEFAULT_BIN_ID</code> 替換成您的這組 <span class="text-blue-400">Bin ID</span>。<br>
+                        重新發布後，任何訪客進入網頁預設都會載入您的清單，但<span class="text-red-400">只有持有 Master Key 的人能解鎖並修改內容！</span>
                     </div>
                 </div>
             </details>
@@ -108,30 +122,67 @@
         let currentSort = 'updateTime';
         let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
 
-        // 雲端同步設定
+        // 雲端同步與權限設定
+        const DEFAULT_BIN_ID = ''; // 🔥 部署前請將您的 Bin ID 貼在這裡，讓訪客一進網頁就能自動載入！
         const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifIubFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
-        let cloudKey = localStorage.getItem('syncKey');
-        if (!cloudKey || cloudKey === '$2a$10$7hoFNnd/YF8ugM4NxoifiUbFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC') {
-            cloudKey = DEFAULT_API_KEY;
-        }
-        let cloudBin = localStorage.getItem('syncBin') || '';
+        const ADMIN_USER = 'a0983818451@gmail.com';
+        const ADMIN_PASS = 'Jack09040904';
+
+        let isAdmin = localStorage.getItem('isAdmin') === 'true';
+        let cloudKey = isAdmin ? DEFAULT_API_KEY : '';
+        let cloudBin = localStorage.getItem('syncBin') || DEFAULT_BIN_ID;
 
         setTimeout(() => {
-            if(document.getElementById('sync-key')) {
-                document.getElementById('sync-key').value = cloudKey;
+            if(document.getElementById('admin-user')) {
                 document.getElementById('sync-bin').value = cloudBin;
                 updateSyncStatus();
+                if(isAdmin) {
+                    document.getElementById('admin-user').value = ADMIN_USER;
+                    document.getElementById('admin-pass').value = '********';
+                    document.getElementById('admin-user').disabled = true;
+                    document.getElementById('admin-pass').disabled = true;
+                    document.getElementById('admin-tools').classList.remove('hidden');
+                    document.getElementById('login-btn').innerText = '登出';
+                    document.getElementById('login-btn').classList.replace('text-blue-400', 'text-red-400');
+                    document.getElementById('login-btn').classList.replace('bg-blue-600/20', 'bg-red-600/20');
+                    document.getElementById('login-btn').classList.replace('border-blue-500/30', 'border-red-500/30');
+                }
+            }
+            if(cloudBin && !isAdmin && Object.keys(userSettings).every(k => !userSettings[k].target && !userSettings[k].entry)) {
+                // 訪客模式，如果預設有 Bin ID 且目前沒有任何設定資料，自動偷偷下載一次資料
+                fetchFromCloud(true);
             }
         }, 100);
 
+        function toggleAdminLogin() {
+            if(isAdmin) {
+                localStorage.removeItem('isAdmin');
+                alert("已登出管理者模式，轉換為訪客觀看狀態。");
+                location.reload();
+            } else {
+                const user = document.getElementById('admin-user').value.trim();
+                const pass = document.getElementById('admin-pass').value.trim();
+                if(user === ADMIN_USER && pass === ADMIN_PASS) {
+                    localStorage.setItem('isAdmin', 'true');
+                    alert("登入成功！已切換至 PRO 管理者模式。");
+                    location.reload();
+                } else {
+                    alert("登入失敗：帳號或密碼錯誤！");
+                }
+            }
+        }
+
         function updateSyncStatus() {
             const statusBadge = document.getElementById('sync-status');
-            if(cloudKey && cloudBin) {
+            if(isAdmin && cloudBin) {
                 statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400";
-                statusBadge.innerText = "已連線雲端同步";
+                statusBadge.innerText = "PRO 管理者模式";
+            } else if (!isAdmin && cloudBin) {
+                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400";
+                statusBadge.innerText = "唯讀訪客模式";
             } else {
                 statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500";
-                statusBadge.innerText = "本機單機模式";
+                statusBadge.innerText = "本地端未連線";
             }
         }
 
@@ -149,7 +200,7 @@
             try {
                 const res = await fetch("https://api.jsonbin.io/v3/b", {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey, 'X-Bin-Name': 'AltcoinVaultSync' },
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey, 'X-Bin-Name': 'AltcoinVaultSync', 'X-Bin-Private': 'false' },
                     body: JSON.stringify(userSettings)
                 });
                 const data = await res.json();
@@ -157,7 +208,7 @@
                     cloudBin = data.metadata.id;
                     document.getElementById('sync-bin').value = cloudBin;
                     saveSyncConfig();
-                    alert("✅ 成功建立雲端區塊！\n\n您的 Bin ID 是: " + cloudBin + "\n\n請在手機上輸入相同的 Master Key 與 Bin ID，就可以同步了！");
+                    alert("✅ 成功建立公開雲端區塊！\n\n您的 Bin ID 是: " + cloudBin + "\n\n1. 請將程式碼約第112行的 DEFAULT_BIN_ID 替換成這組代碼！\n2. 這樣別人就不需要密碼也能觀看了！");
                 } else {
                     alert("❌ 建立失敗：" + JSON.stringify(data));
                 }
@@ -167,34 +218,44 @@
         async function pushToCloud() {
             if(!cloudKey || !cloudBin) return;
             try {
-                await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
+                const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey },
                     body: JSON.stringify(userSettings)
                 });
+                if(res.status === 401 || res.status === 403) {
+                    alert("更新失敗：授權碼 (Master Key) 錯誤！已為您登出。");
+                    toggleAdminLogin();
+                }
             } catch(e) { console.error("Cloud Error", e); }
         }
 
-        async function fetchFromCloud() {
-            saveSyncConfig();
-            if(!cloudKey || !cloudBin) return alert("請先填寫 Master Key 與 Bin ID！");
-            document.getElementById('fetch-btn').innerText = "下載中...";
+        async function fetchFromCloud(silent = false) {
+            if(!silent) saveSyncConfig();
+            if(!cloudBin) return silent ? null : alert("請先填寫 Bin ID！");
+            
+            if(!silent) document.getElementById('fetch-btn').innerText = "下載中...";
             try {
+                const headers = {};
+                if(cloudKey) headers['X-Master-Key'] = cloudKey;
+
                 const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
                     method: 'GET',
-                    headers: { 'X-Master-Key': cloudKey }
+                    headers: headers
                 });
                 const data = await res.json();
                 if(data.record) {
                     userSettings = data.record;
                     saveSettings();
                     renderCards();
-                    alert("✅ 成功從雲端強制下載並覆蓋了這台裝置的設定！");
+                    if(!silent) alert("✅ 成功從雲端強制讀取並更新了此裝置的資料！");
                 } else {
-                    alert("❌ 下載失敗：" + JSON.stringify(data));
+                    if(!silent) alert("❌ 下載失敗：" + JSON.stringify(data));
                 }
-            } catch(e) { alert("❌ 網路請求錯誤：" + e); }
-            document.getElementById('fetch-btn').innerText = "2. 從雲端強制下載 ⬇️";
+            } catch(e) { 
+                if(!silent) alert("❌ 網路請求錯誤：" + e); 
+            }
+            if(!silent) document.getElementById('fetch-btn').innerText = "2. 從雲端強制讀取 ⬇️";
         }
 
         // 初始化設定
@@ -348,8 +409,8 @@
                             <div class="flex justify-between items-center mb-3">
                                 <span class="text-[10px] px-2 py-1 rounded border ${set.isHolding ? 'border-blue-500/50 text-blue-400 bg-blue-500/5' : 'border-slate-700 text-slate-500'}">
                                     ${set.isHolding ? '● 持倉中' : '○ 觀望中'}
-                                </span >
-                                <button onclick="toggleEdit('${coin}')" class="text-slate-500 hover:text-white transition-colors">編輯計畫 ✏️</button>
+                                </span>
+                                ${isAdmin ? `<button onclick="toggleEdit('${coin}')" class="text-slate-500 hover:text-white transition-colors">編輯計畫 ✏️</button>` : ''}
                             </div>
                             <div class="grid grid-cols-3 gap-1 text-[10px] text-center">
                                 <div><p class="text-slate-600 mb-1 uppercase">Entry</p><p class="font-mono">${set.entry || '--'}</p></div>
