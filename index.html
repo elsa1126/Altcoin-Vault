@@ -35,6 +35,33 @@
             </div>
         </div>
 
+        <div class="mb-5 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
+            <details class="group">
+                <summary class="text-xs text-slate-400 font-bold cursor-pointer outline-none hover:text-white transition flex justify-between items-center list-none">
+                    <span class="flex items-center gap-2">☁️ 雲端跨裝置同步設定 (JSONBin)</span>
+                    <span id="sync-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500">尚未連接</span>
+                </summary>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800 pt-4">
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">X-Master-Key (必填)</label>
+                        <input type="password" id="sync-key" placeholder="貼上您的 Master Key..." class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">Bin ID (區塊ID)</label>
+                        <input type="text" id="sync-bin" placeholder="首次使用請留空，點擊下方「建立」" class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                    </div>
+                    <div class="md:col-span-2 flex flex-col md:flex-row gap-2">
+                        <button onclick="createCloudBin()" class="flex-1 py-2 text-xs bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-600/40 transition font-bold shadow-lg">1. 首次使用：建立全新雲端區塊</button>
+                        <button onclick="pushToCloud()" class="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition font-bold shadow-lg">強制上傳到雲端 ⬆️</button>
+                        <button id="fetch-btn" onclick="fetchFromCloud()" class="flex-1 py-2 text-xs bg-green-600/20 text-green-400 border border-green-500/30 rounded hover:bg-green-600/40 transition font-bold shadow-lg">2. 從雲端強制下載 ⬇️</button>
+                    </div>
+                    <div class="text-[11px] text-slate-400 md:col-span-2 bg-slate-800/50 p-2 rounded leading-relaxed border border-slate-700/50">
+                        <span class="text-white font-bold">手機跨裝置同步教學：</span>先在電腦點擊「1. 建立全新雲端區塊」，會產生並自動填入一組 <span class="text-blue-400">Bin ID</span>。<br>接著當您用手機打開本網頁時，將相同的 <span class="text-yellow-400">Master Key</span> 與這組 <span class="text-blue-400">Bin ID</span> 填入，最後點擊「2. 從雲端強制下載」即可完成手機同步！<br><span class="text-slate-500">（完成連線後，不管是在電腦或手機修改進場價或是目標價，系統都會自動即時上傳到雲端）</span>
+                    </div>
+                </div>
+            </details>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
             <div class="md:col-span-1">
                 <label class="block text-[11px] text-slate-500 mb-1.5 font-bold">搜尋幣種</label>
@@ -65,6 +92,92 @@
         let marketData = {};
         let currentSort = 'updateTime';
         let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
+
+        // 雲端同步設定
+        const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifiUbFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
+        let cloudKey = localStorage.getItem('syncKey') || DEFAULT_API_KEY;
+        let cloudBin = localStorage.getItem('syncBin') || '';
+
+        setTimeout(() => {
+            if(document.getElementById('sync-key')) {
+                document.getElementById('sync-key').value = cloudKey;
+                document.getElementById('sync-bin').value = cloudBin;
+                updateSyncStatus();
+            }
+        }, 100);
+
+        function updateSyncStatus() {
+            const statusBadge = document.getElementById('sync-status');
+            if(cloudKey && cloudBin) {
+                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400";
+                statusBadge.innerText = "已連線雲端同步";
+            } else {
+                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500";
+                statusBadge.innerText = "本機單機模式";
+            }
+        }
+
+        function saveSyncConfig() {
+            cloudKey = document.getElementById('sync-key').value.trim();
+            cloudBin = document.getElementById('sync-bin').value.trim();
+            localStorage.setItem('syncKey', cloudKey);
+            localStorage.setItem('syncBin', cloudBin);
+            updateSyncStatus();
+        }
+
+        async function createCloudBin() {
+            saveSyncConfig();
+            if(!cloudKey) return alert("請先填寫 Master Key！");
+            try {
+                const res = await fetch("https://api.jsonbin.io/v3/b", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey, 'X-Bin-Name': 'AltcoinVaultSync' },
+                    body: JSON.stringify(userSettings)
+                });
+                const data = await res.json();
+                if(data.record) {
+                    cloudBin = data.metadata.id;
+                    document.getElementById('sync-bin').value = cloudBin;
+                    saveSyncConfig();
+                    alert("✅ 成功建立雲端區塊！\n\n您的 Bin ID 是: " + cloudBin + "\n\n請在手機上輸入相同的 Master Key 與 Bin ID，就可以同步了！");
+                } else {
+                    alert("❌ 建立失敗：" + JSON.stringify(data));
+                }
+            } catch(e) { alert("❌ 網路請求錯誤：" + e); }
+        }
+
+        async function pushToCloud() {
+            if(!cloudKey || !cloudBin) return;
+            try {
+                await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey },
+                    body: JSON.stringify(userSettings)
+                });
+            } catch(e) { console.error("Cloud Error", e); }
+        }
+
+        async function fetchFromCloud() {
+            saveSyncConfig();
+            if(!cloudKey || !cloudBin) return alert("請先填寫 Master Key 與 Bin ID！");
+            document.getElementById('fetch-btn').innerText = "下載中...";
+            try {
+                const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
+                    method: 'GET',
+                    headers: { 'X-Master-Key': cloudKey }
+                });
+                const data = await res.json();
+                if(data.record) {
+                    userSettings = data.record;
+                    saveSettings();
+                    renderCards();
+                    alert("✅ 成功從雲端強制下載並覆蓋了這台裝置的設定！");
+                } else {
+                    alert("❌ 下載失敗：" + JSON.stringify(data));
+                }
+            } catch(e) { alert("❌ 網路請求錯誤：" + e); }
+            document.getElementById('fetch-btn').innerText = "2. 從雲端強制下載 ⬇️";
+        }
 
         // 初始化設定
         COIN_LIST.forEach(coin => {
@@ -132,6 +245,7 @@
                 userSettings[coin].lastManualUpdate = Date.now(); // 自動記錄更新時間
                 saveSettings();
                 renderCards();
+                pushToCloud();
             }
         }
 
