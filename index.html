@@ -94,8 +94,11 @@
         let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
 
         // 雲端同步設定
-        const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifiUbFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
-        let cloudKey = localStorage.getItem('syncKey') || DEFAULT_API_KEY;
+        const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifIubFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
+        let cloudKey = localStorage.getItem('syncKey');
+        if (!cloudKey || cloudKey === '$2a$10$7hoFNnd/YF8ugM4NxoifiUbFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC') {
+            cloudKey = DEFAULT_API_KEY;
+        }
         let cloudBin = localStorage.getItem('syncBin') || '';
 
         setTimeout(() => {
