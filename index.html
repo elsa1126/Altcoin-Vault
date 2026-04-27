@@ -60,7 +60,10 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">預設載入區域 (Bin ID)</label>
-                            <input type="text" id="sync-bin" placeholder="訪客預設會讀取此 Bin ID" class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                            <div class="flex gap-2">
+                                <input type="text" id="sync-bin" placeholder="訪客預設會讀取此 Bin ID" class="flex-1 text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                                <button id="guest-refresh-btn" onclick="guestRefresh()" class="px-3 bg-green-600/20 text-green-400 border border-green-500/30 rounded text-xs hover:bg-green-600/40 transition font-bold whitespace-nowrap">重新讀取 🔄</button>
+                            </div>
                         </div>
                         <div class="flex flex-col gap-3">
                             <div>
@@ -193,6 +196,19 @@
                 localStorage.setItem('syncBin', cloudBin);
             }
             updateSyncStatus();
+        }
+
+        async function guestRefresh() {
+            const btn = document.getElementById('guest-refresh-btn');
+            if (btn) { btn.innerText = '讀取中...'; btn.disabled = true; }
+            saveSyncConfig();
+            if (!cloudBin) {
+                alert('尚無預設 Bin ID，請聯繫管理員！');
+                if (btn) { btn.innerText = '重新讀取 🔄'; btn.disabled = false; }
+                return;
+            }
+            await fetchFromCloud(false);
+            if (btn) { btn.innerText = '重新讀取 🔄'; btn.disabled = false; }
         }
 
         async function createCloudBin() {
