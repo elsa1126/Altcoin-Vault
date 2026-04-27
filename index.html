@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>山寨幣策略監控庫 | Altcoin Vault</title>
+    
+    <!-- iOS / Android Web App 設定 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="策略監控">
+    <meta name="theme-color" content="#0B0E14">
+    
+    <!-- 網頁與 App 圖示設定 (請確保將圖示檔案命名為 icon.png 並放在同一資料夾內) -->
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="shortcut icon" href="icon.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0B0E14; color: #E2E8F0; font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; }
+        .glass-card { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.3s ease; }
+        .glass-card:hover { border-color: rgba(59, 130, 246, 0.4); background: rgba(30, 41, 59, 0.6); }
+        input[type="number"], select { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; border-radius: 6px; }
+        input:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 pb-20">
+
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-slate-800 pb-6 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
+                    策略監控庫 <span class="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-1 rounded tracking-widest border border-blue-500/30">PRO</span>
+                </h1>
+                <p class="text-slate-500 text-sm mt-2">自動化階梯報價：Pionex &rarr; Gate.io &rarr; OKX</p>
+            </div>
+            <div class="flex flex-col items-end">
+                <div id="status-indicator" class="text-sm text-green-400 flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    市場連線正常
+                </div>
+                <div class="text-[11px] text-slate-500 mt-1 font-mono uppercase">下次更新: <span id="countdown" class="text-blue-400">180</span> 秒</div>
+            </div>
+        </div>
+
+        <div class="mb-5 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
+            <details class="group">
+                <summary class="text-xs text-slate-400 font-bold cursor-pointer outline-none hover:text-white transition flex justify-between items-center list-none">
+                    <span class="flex items-center gap-2">☁️ 雲端跨裝置同步設定 (JSONBin)</span>
+                    <span id="sync-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500">尚未連接</span>
+                </summary>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800 pt-4">
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">X-Master-Key (必填)</label>
+                        <input type="password" id="sync-key" placeholder="貼上您的 Master Key..." class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">Bin ID (區塊ID)</label>
+                        <input type="text" id="sync-bin" placeholder="首次使用請留空，點擊下方「建立」" class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
+                    </div>
+                    <div class="md:col-span-2 flex flex-col md:flex-row gap-2">
+                        <button onclick="createCloudBin()" class="flex-1 py-2 text-xs bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-600/40 transition font-bold shadow-lg">1. 首次使用：建立全新雲端區塊</button>
+                        <button onclick="pushToCloud()" class="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition font-bold shadow-lg">強制上傳到雲端 ⬆️</button>
+                        <button id="fetch-btn" onclick="fetchFromCloud()" class="flex-1 py-2 text-xs bg-green-600/20 text-green-400 border border-green-500/30 rounded hover:bg-green-600/40 transition font-bold shadow-lg">2. 從雲端強制下載 ⬇️</button>
+                    </div>
+                    <div class="text-[11px] text-slate-400 md:col-span-2 bg-slate-800/50 p-2 rounded leading-relaxed border border-slate-700/50">
+                        <span class="text-white font-bold">手機跨裝置同步教學：</span>先在電腦點擊「1. 建立全新雲端區塊」，會產生並自動填入一組 <span class="text-blue-400">Bin ID</span>。<br>接著當您用手機打開本網頁時，將相同的 <span class="text-yellow-400">Master Key</span> 與這組 <span class="text-blue-400">Bin ID</span> 填入，最後點擊「2. 從雲端強制下載」即可完成手機同步！<br><span class="text-slate-500">（完成連線後，不管是在電腦或手機修改進場價或是目標價，系統都會自動即時上傳到雲端）</span>
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
+            <div class="md:col-span-1">
+                <label class="block text-[11px] text-slate-500 mb-1.5 font-bold">搜尋幣種</label>
+                <input type="text" id="searchInput" placeholder="輸入名稱 (如: PEPE)..." class="w-full px-4 py-2 bg-slate-900/60 border border-slate-800 text-sm focus:ring-1 focus:ring-blue-500 outline-none transition-all">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-[11px] text-slate-500 mb-1.5 font-bold">自訂排序條件</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button onclick="changeSort('name')" class="sort-btn px-3 py-2 text-xs rounded bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700" id="sort-name">名稱 (A-Z)</button>
+                    <button onclick="changeSort('targetDist')" class="sort-btn px-3 py-2 text-xs rounded bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700" id="sort-targetDist">目標距離</button>
+                    <button onclick="changeSort('change')" class="sort-btn px-3 py-2 text-xs rounded bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700" id="sort-change">24H 漲幅</button>
+                    <button onclick="changeSort('updateTime')" class="sort-btn px-3 py-2 text-xs rounded bg-blue-600/20 text-blue-400 border border-blue-500/40" id="sort-updateTime">更新時間</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="coin-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div class="col-span-full py-20 text-center flex flex-col items-center gap-4">
+                <div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                <p class="text-slate-500 animate-pulse text-sm">正在從全球交易所同步最新行情...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COIN_LIST = ['1INCH', 'A', 'A2Z', 'AB', 'ACH', 'ACT', 'AEVO', 'AGI', 'AI', 'ALGO', 'ALT', 'ANIME', 'APE', 'APT', 'ARPA', 'ATA', 'AWE', 'AXS', 'BABYDOGE', 'BAN', 'BEL', 'BLUR', 'BOME', 'BONK', 'C98', 'CAKE', 'CAT', 'CELR', 'CFX', 'CHR', 'CHZ', 'CKB', 'COS', 'COTI', 'CRO', 'CSPR', 'CTSI', 'CVC', 'DEGO', 'DENT', 'DGB', 'DODO', 'DOGE', 'DOGS', 'DOT', 'DUSK', 'EDU', 'ENA', 'ENJ', 'ENS', 'FET', 'FLM', 'FLOKI', 'FLR', 'FORM', 'FTT', 'FUN', 'GALA', 'GEAR', 'GMT', 'GOAT', 'GRT', 'GT', 'HBAR', 'HFT', 'HIGH', 'HIVE', 'HMSTR', 'HOOK', 'HTX', 'ICP', 'ID', 'IDEX', 'IMX', 'IO', 'IOST', 'IOTA', 'IQ', 'JASMY', 'JOE', 'KAVA', 'KDA', 'KNC', 'LAT', 'LINK', 'LRC', 'LTC', 'LUNC', 'MANA', 'MANTA', 'MAV', 'MBOX', 'MEME', 'MOG', 'NEAR', 'NEIRO', 'NFT', 'NKN', 'NOT', 'OM', 'ONE', 'OXT', 'PENGU', 'PEOPLE', 'PEPE', 'PHA', 'PI', 'PIXEL', 'PNUT', 'POL', 'POND', 'PORTAL', 'PSG', 'PYTH', 'QKC', 'RAD', 'RARE', 'RATS', 'RDNT', 'RSR', 'RUNE', 'SAND', 'SATS', 'SEI', 'SFP', 'SHIB', 'SKL', 'SOL', 'SPELL', 'STRK', 'STX', 'SUI', 'SUSHI', 'SYS', 'TFUEL', 'THETA', 'TKO', 'TLM', 'TRUMP', 'TRX', 'TURBO', 'UNI', 'VOXEL', 'VTHO', 'W', 'WAXP', 'WEN', 'WIN', 'WOO', 'XAI', 'XEC', 'XVG', 'XVS', 'YGG', 'ZBCN', 'ZIL'];
+        const PROXY_URL = 'https://cors.eu.org/'; 
+        let marketData = {};
+        let currentSort = 'updateTime';
+        let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
+
+        // 雲端同步設定
+        const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifIubFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
+        let cloudKey = localStorage.getItem('syncKey');
+        if (!cloudKey || cloudKey === '$2a$10$7hoFNnd/YF8ugM4NxoifiUbFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC') {
+            cloudKey = DEFAULT_API_KEY;
+        }
+        let cloudBin = localStorage.getItem('syncBin') || '';
+
+        setTimeout(() => {
+            if(document.getElementById('sync-key')) {
+                document.getElementById('sync-key').value = cloudKey;
+                document.getElementById('sync-bin').value = cloudBin;
+                updateSyncStatus();
+            }
+        }, 100);
+
+        function updateSyncStatus() {
+            const statusBadge = document.getElementById('sync-status');
+            if(cloudKey && cloudBin) {
+                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400";
+                statusBadge.innerText = "已連線雲端同步";
+            } else {
+                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500";
+                statusBadge.innerText = "本機單機模式";
+            }
+        }
+
+        function saveSyncConfig() {
+            cloudKey = document.getElementById('sync-key').value.trim();
+            cloudBin = document.getElementById('sync-bin').value.trim();
+            localStorage.setItem('syncKey', cloudKey);
+            localStorage.setItem('syncBin', cloudBin);
+            updateSyncStatus();
+        }
+
+        async function createCloudBin() {
+            saveSyncConfig();
+            if(!cloudKey) return alert("請先填寫 Master Key！");
+            try {
+                const res = await fetch("https://api.jsonbin.io/v3/b", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey, 'X-Bin-Name': 'AltcoinVaultSync' },
+                    body: JSON.stringify(userSettings)
+                });
+                const data = await res.json();
+                if(data.record) {
+                    cloudBin = data.metadata.id;
+                    document.getElementById('sync-bin').value = cloudBin;
+                    saveSyncConfig();
+                    alert("✅ 成功建立雲端區塊！\n\n您的 Bin ID 是: " + cloudBin + "\n\n請在手機上輸入相同的 Master Key 與 Bin ID，就可以同步了！");
+                } else {
+                    alert("❌ 建立失敗：" + JSON.stringify(data));
+                }
+            } catch(e) { alert("❌ 網路請求錯誤：" + e); }
+        }
+
+        async function pushToCloud() {
+            if(!cloudKey || !cloudBin) return;
+            try {
+                await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey },
+                    body: JSON.stringify(userSettings)
+                });
+            } catch(e) { console.error("Cloud Error", e); }
+        }
+
+        async function fetchFromCloud() {
+            saveSyncConfig();
+            if(!cloudKey || !cloudBin) return alert("請先填寫 Master Key 與 Bin ID！");
+            document.getElementById('fetch-btn').innerText = "下載中...";
+            try {
+                const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
+                    method: 'GET',
+                    headers: { 'X-Master-Key': cloudKey }
+                });
+                const data = await res.json();
+                if(data.record) {
+                    userSettings = data.record;
+                    saveSettings();
+                    renderCards();
+                    alert("✅ 成功從雲端強制下載並覆蓋了這台裝置的設定！");
+                } else {
+                    alert("❌ 下載失敗：" + JSON.stringify(data));
+                }
+            } catch(e) { alert("❌ 網路請求錯誤：" + e); }
+            document.getElementById('fetch-btn').innerText = "2. 從雲端強制下載 ⬇️";
+        }
+
+        // 初始化設定
+        COIN_LIST.forEach(coin => {
+            if (!userSettings[coin]) {
+                userSettings[coin] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '' };
+            } else if (userSettings[coin].note === undefined) {
+                userSettings[coin].note = '';
+            }
+        });
+
+        function saveSettings() {
+            localStorage.setItem('coinSettingsV3', JSON.stringify(userSettings));
+        }
+
+        async function fetchExchangeData() {
+            try {
+                const [pRes, gRes, oRes] = await Promise.all([
+                    fetch(PROXY_URL + encodeURIComponent('https://api.pionex.com/api/v1/market/tickers')),
+                    fetch(PROXY_URL + encodeURIComponent('https://api.gateio.ws/api/v4/spot/tickers')),
+                    fetch(PROXY_URL + encodeURIComponent('https://www.okx.com/api/v5/market/tickers?instType=SPOT'))
+                ]);
+                
+                const pData = await pRes.json();
+                const gData = await gRes.json();
+                const oData = await oRes.json();
+
+                let pMap = {}, gMap = {}, oMap = {};
+                if(pData.data) pData.data.tickers.forEach(t => { if(t.symbol.endsWith('_USDT')) pMap[t.symbol.split('_')[0]] = { price: t.close, change: t.change !== undefined ? t.change*100 : ((t.close - t.open) / t.open) * 100, vol: t.volume, src: 'Pionex' } });
+                if(Array.isArray(gData)) gData.forEach(t => { if(t.currency_pair.endsWith('_USDT')) gMap[t.currency_pair.split('_')[0]] = { price: t.last, change: t.change_percentage, vol: t.base_volume, src: 'Gate' } });
+                if(oData.data) oData.data.forEach(t => { if(t.instId.endsWith('-USDT')) oMap[t.instId.split('-')[0]] = { price: t.last, change: ((t.last-t.open24h)/t.open24h)*100, vol: t.vol24h, src: 'OKX' } });
+
+                marketData = {};
+                COIN_LIST.forEach(coin => {
+                    marketData[coin] = pMap[coin] || gMap[coin] || oMap[coin] || { price: 0, change: 0, vol: 0, src: '--' };
+                });
+                renderCards();
+            } catch (e) {
+                console.error("更新失敗:", e);
+                document.getElementById('status-indicator').innerHTML = '<span class="text-red-500">網路連線異常</span>';
+            }
+        }
+
+        function changeSort(type) {
+            currentSort = type;
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
+                btn.classList.add('bg-slate-800', 'text-slate-400', 'border-slate-700');
+            });
+            document.getElementById(`sort-${type}`).classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
+            renderCards();
+        }
+
+        function toggleEdit(coin) {
+            const displayDiv = document.getElementById(`display-${coin}`);
+            const editDiv = document.getElementById(`edit-${coin}`);
+            if (editDiv.classList.contains('hidden')) {
+                displayDiv.classList.add('hidden');
+                editDiv.classList.remove('hidden');
+            } else {
+                userSettings[coin].entry = parseFloat(document.getElementById(`entry-${coin}`).value) || 0;
+                userSettings[coin].target = parseFloat(document.getElementById(`target-${coin}`).value) || 0;
+                userSettings[coin].stopLoss = parseFloat(document.getElementById(`sl-${coin}`).value) || 0;
+                userSettings[coin].isHolding = document.getElementById(`holding-${coin}`).value === 'true';
+                userSettings[coin].note = document.getElementById(`note-${coin}`) ? document.getElementById(`note-${coin}`).value : '';
+                userSettings[coin].lastManualUpdate = Date.now(); // 自動記錄更新時間
+                saveSettings();
+                renderCards();
+                pushToCloud();
+            }
+        }
+
+        function formatPrice(p) {
+            const num = Number(p);
+            if(num === 0) return '---';
+            if(num < 0.0001) return num.toLocaleString('en-US', { maximumSignificantDigits: 4 });
+            if(num < 1) return num.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatRelativeTime(ts) {
+            if(!ts) return '未曾設定';
+            const diff = Date.now() - ts;
+            if(diff < 60000) return '剛剛';
+            const mins = Math.floor(diff/60000);
+            if(mins < 60) return `${mins} 分鐘前`;
+            const hours = Math.floor(mins/60);
+            if(hours < 24) return `${hours} 小時前`;
+            const date = new Date(ts);
+            return `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2,'0')}`;
+        }
+
+        function renderCards() {
+            const container = document.getElementById('coin-container');
+            const searchVal = document.getElementById('searchInput').value.toUpperCase();
+
+            let sortedList = COIN_LIST.filter(c => c.includes(searchVal)).sort((a, b) => {
+                const mktA = marketData[a], mktB = marketData[b];
+                const setA = userSettings[a], setB = userSettings[b];
+                if (currentSort === 'name') return a.localeCompare(b);
+                if (currentSort === 'change') return mktB.change - mktA.change;
+                if (currentSort === 'updateTime') return setB.lastManualUpdate - setA.lastManualUpdate;
+                if (currentSort === 'targetDist') {
+                    const getDist = (m, s) => (s.target > 0 && m.price > 0) ? (s.target - m.price) / m.price : 9999;
+                    return getDist(mktA, setA) - getDist(mktB, setB);
+                }
+            });
+
+            container.innerHTML = '';
+            sortedList.forEach(coin => {
+                const mkt = marketData[coin], set = userSettings[coin];
+                const isUp = mkt.change >= 0;
+                const priceColor = isUp ? 'text-green-400' : 'text-red-400';
+                
+                let distanceText = '';
+                if(mkt.price > 0) {
+                    if(set.isHolding && set.target > 0) {
+                        const d = ((set.target - mkt.price) / mkt.price * 100).toFixed(2);
+                        distanceText = `<div class="mt-3 flex justify-between text-xs"><span class="text-slate-500">距目標:</span><span class="${d <= 0 ? 'text-green-400 font-bold' : 'text-blue-400'}">${d}%</span></div>`;
+                    } else if (!set.isHolding && set.entry > 0) {
+                        const dValue = ((set.entry - mkt.price) / set.entry * 100);
+                        if (dValue < 0) {
+                            distanceText = `<div class="mt-3 text-center py-2 text-xs font-bold text-red-400 bg-red-900/20 rounded border border-red-500/20">似乎錯過了</div>`;
+                        } else {
+                            const dText = (dValue > 0 ? '+' : '') + dValue.toFixed(2);
+                            distanceText = `<div class="mt-3 text-center py-1 text-xs text-slate-500 bg-slate-800/40 rounded">與計畫進場價落差: ${dText}%</div>`;
+                        }
+                    }
+                }
+
+                const card = document.createElement('div');
+                card.className = 'glass-card rounded-2xl p-5 border border-slate-800 flex flex-col';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-white tracking-tight">${coin}</span>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 uppercase">${mkt.src}</span>
+                                ${set.note ? `<span class="text-[10px] text-yellow-400/90 bg-yellow-500/20 px-1.5 py-0.5 rounded border border-yellow-500/30 max-w-[80px] truncate" title="${set.note}">${set.note}</span>` : ''}
+                            </div>
+                            <div class="text-xl font-mono mt-1 ${priceColor}">${formatPrice(mkt.price)}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="${priceColor} text-xs font-bold bg-slate-900/50 px-2 py-1 rounded">${isUp ? '+' : ''}${Number(mkt.change).toFixed(2)}%</div>
+                            <div class="text-[10px] text-slate-600 mt-1.5 uppercase font-mono">Vol: ${Number(mkt.vol/1000).toFixed(0)}K</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
+                        <div id="display-${coin}">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[10px] px-2 py-1 rounded border ${set.isHolding ? 'border-blue-500/50 text-blue-400 bg-blue-500/5' : 'border-slate-700 text-slate-500'}">
+                                    ${set.isHolding ? '● 持倉中' : '○ 觀望中'}
+                                </span >
+                                <button onclick="toggleEdit('${coin}')" class="text-slate-500 hover:text-white transition-colors">編輯計畫 ✏️</button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1 text-[10px] text-center">
+                                <div><p class="text-slate-600 mb-1 uppercase">Entry</p><p class="font-mono">${set.entry || '--'}</p></div>
+                                <div><p class="text-green-500/60 mb-1 uppercase">Target</p><p class="font-mono">${set.target || '--'}</p></div>
+                                <div><p class="text-red-500/60 mb-1 uppercase">Stop</p><p class="font-mono">${set.stopLoss || '--'}</p></div>
+                            </div>
+                            ${distanceText}
+                        </div>
+
+                        <div id="edit-${coin}" class="hidden">
+                            <div class="grid grid-cols-2 gap-3 mb-3">
+                                <div class="col-span-2">
+                                    <label class="text-[10px] text-slate-500 uppercase block mb-1">交易狀態</label>
+                                    <select id="holding-${coin}" class="w-full text-xs p-2">
+                                        <option value="false" ${!set.isHolding ? 'selected' : ''}>觀望中 (Watching)</option>
+                                        <option value="true" ${set.isHolding ? 'selected' : ''}>已進場 (Holding)</option>
+                                    </select>
+                                </div>
+                                <div><label class="text-[10px] text-slate-500 uppercase block mb-1">進場價</label><input type="number" id="entry-${coin}" value="${set.entry}" class="w-full text-xs p-2"></div>
+                                <div><label class="text-[10px] text-red-500/50 uppercase block mb-1">停損價</label><input type="number" id="sl-${coin}" value="${set.stopLoss}" class="w-full text-xs p-2"></div>
+                                <div><label class="text-[10px] text-green-500/50 uppercase block mb-1">目標價</label><input type="number" id="target-${coin}" value="${set.target}" class="w-full text-xs p-2"></div>
+                                <div><label class="text-[10px] text-yellow-500/50 uppercase block mb-1">備註 (十字內)</label><input type="text" id="note-${coin}" value="${set.note || ''}" maxlength="10" placeholder="可選填..." class="w-full text-xs p-2" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; border-radius: 6px;"></div>
+                            </div>
+                            <button onclick="toggleEdit('${coin}')" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold transition-all shadow-lg shadow-blue-900/20">儲存並記錄時間</button>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[10px]">
+                        <span class="text-slate-700 tracking-widest uppercase">Last Update</span>
+                        <span class="text-slate-500 font-mono">${formatRelativeTime(set.lastManualUpdate)}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', renderCards);
+
+        let countdown = 180;
+        setInterval(() => {
+            countdown--;
+            document.getElementById('countdown').innerText = countdown;
+            if (countdown <= 0) { countdown = 180; fetchExchangeData(); }
+        }, 1000);
+
+        fetchExchangeData();
+    </script>
+</body>
+</html>
