@@ -26,6 +26,17 @@
         .glass-card:hover { border-color: rgba(59, 130, 246, 0.4); background: rgba(30, 41, 59, 0.6); }
         input[type="number"], select { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; border-radius: 6px; }
         input:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
+        /* 目標達成——發光金框 */
+        @keyframes gold-pulse {
+            0%, 100% { box-shadow: 0 0 12px rgba(251,191,36,0.4), 0 0 30px rgba(251,191,36,0.15); }
+            50%       { box-shadow: 0 0 24px rgba(251,191,36,0.7), 0 0 55px rgba(251,191,36,0.3); }
+        }
+        .card-target-hit {
+            border: 1px solid rgba(251,191,36,0.75) !important;
+            background: rgba(40, 35, 15, 0.55) !important;
+            animation: gold-pulse 2s ease-in-out infinite;
+        }
+        .card-target-hit:hover { border-color: rgba(251,191,36,1) !important; }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8 pb-20">
@@ -38,7 +49,7 @@
                 </h1>
                 <p class="text-slate-500 text-sm mt-2">自動化階梯報價：Pionex &rarr; Gate.io &rarr; OKX</p>
             </div>
-            <div class="flex flex-col items-end">
+            <div class="flex flex-col items-end gap-1">
                 <div id="status-indicator" class="text-sm text-green-400 flex items-center gap-2">
                     <span class="relative flex h-2 w-2">
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -46,7 +57,11 @@
                     </span>
                     市場連線正常
                 </div>
-                <div class="text-[11px] text-slate-500 mt-1 font-mono uppercase">下次更新: <span id="countdown" class="text-blue-400">180</span> 秒</div>
+                <div class="text-[11px] text-slate-500 font-mono uppercase">下次更新: <span id="countdown" class="text-blue-400">180</span> 秒</div>
+                <div class="flex gap-1.5 mt-0.5">
+                    <button onclick="exportSettings()" title="匯出策略備份 JSON" class="text-[10px] px-2 py-1 bg-slate-800/80 text-slate-400 border border-slate-700 rounded hover:bg-amber-500/20 hover:text-amber-400 hover:border-amber-500/50 transition font-bold">⬇ 匯出</button>
+                    <button onclick="importSettings()" title="匯入策略備份 JSON" class="text-[10px] px-2 py-1 bg-slate-800/80 text-slate-400 border border-slate-700 rounded hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/50 transition font-bold">⬆ 匯入</button>
+                </div>
             </div>
         </div>
 
@@ -363,6 +378,50 @@
             }
         }
 
+        // ── 匯出 / 匯入備份 ───────────────────────────────────────
+        function exportSettings() {
+            const data = JSON.stringify(userSettings, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url;
+            const d = new Date();
+            a.download = `altcoin_vault_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('✅ 策略備份已匯出！');
+        }
+
+        function importSettings() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const imported = JSON.parse(ev.target.result);
+                        let count = 0;
+                        COIN_LIST.forEach(coin => {
+                            if (imported[coin]) {
+                                userSettings[coin] = Object.assign({}, userSettings[coin], imported[coin]);
+                                count++;
+                            }
+                        });
+                        saveSettings();
+                        renderCards();
+                        showToast(`✅ 已匯入 ${count} 筆策略！`);
+                    } catch(err) {
+                        showToast('❌ 匯入失敗：格式不正確', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
         async function fetchExchangeData() {
             try {
                 const [pRes, gRes, oRes] = await Promise.all([
@@ -555,7 +614,10 @@
                 }
 
                 const card = document.createElement('div');
-                card.className = 'glass-card rounded-2xl p-5 border border-slate-800 flex flex-col';
+                const targetHit = set.isHolding && set.target > 0 && Number(mkt.price) >= Number(set.target);
+                card.className = targetHit
+                    ? 'glass-card card-target-hit rounded-2xl p-5 flex flex-col'
+                    : 'glass-card rounded-2xl p-5 border border-slate-800 flex flex-col';
                 card.innerHTML = `
                     <div class="flex justify-between items-start mb-4">
                         <div>
