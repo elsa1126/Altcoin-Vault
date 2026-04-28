@@ -163,7 +163,7 @@
             transition: transform .35s cubic-bezier(.4, 0, .2, 1);
             z-index: 50;
             overflow-y: auto;
-            padding: 24px 20px
+            padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px) 20px;
         }
 
         #side-panel.open {
@@ -183,7 +183,7 @@
             transition: transform .35s cubic-bezier(.4, 0, .2, 1);
             z-index: 50;
             overflow-y: auto;
-            padding: 12px 20px 32px
+            padding: 12px 20px calc(env(safe-area-inset-bottom) + 32px)
         }
 
         #bottom-sheet.open {
@@ -607,8 +607,8 @@
     </div>
 
     <!-- Header -->
-    <header class="sticky top-0 z-30 px-4 py-3"
-        style="background:rgba(11,14,20,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)">
+    <header class="sticky top-0 z-30 px-4 pb-3"
+        style="padding-top:calc(env(safe-area-inset-top) + 0.75rem); background:rgba(11,14,20,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)">
         <div class="max-w-lg mx-auto flex justify-between items-center">
             <div>
                 <h1 class="text-base font-bold text-white flex items-center gap-2">策略看板 <span
