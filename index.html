@@ -138,6 +138,7 @@
         const PROXY_URL = 'https://cors.eu.org/'; 
         let marketData = {};
         let currentSort = 'updateTime';
+        let editingCoin = null; // 编辑中的幣種，有値時跟止 renderCards() 覆蓋 UI
         let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
 
         // 雲端同步與權限設定
@@ -373,7 +374,7 @@
             if (triggered.length > 0) {
                 saveSettings();
                 pushToCloud(false);
-                renderCards();
+                if (!editingCoin) { renderCards(); }
                 triggered.forEach(c => showToast(`🚀 ${c} 已自動切換為進場！`, 'success'));
             }
         }
@@ -443,7 +444,7 @@
                 COIN_LIST.forEach(coin => {
                     marketData[coin] = pMap[coin] || gMap[coin] || oMap[coin] || { price: 0, change: 0, vol: 0, src: '--' };
                 });
-                renderCards();
+                if (!editingCoin) { renderCards(); }
                 checkAutoEntry();
             } catch (e) {
                 console.error("更新失敗:", e);
@@ -467,6 +468,7 @@
             if (editDiv.classList.contains('hidden')) {
                 displayDiv.classList.add('hidden');
                 editDiv.classList.remove('hidden');
+                editingCoin = coin; // 標記目前編輯中的幣種
             } else {
                 const newEntry     = parseFloat(document.getElementById(`entry-${coin}`).value) || 0;
                 const newIsHolding = document.getElementById(`holding-${coin}`).value === 'true';
@@ -494,6 +496,7 @@
                     userSettings[coin].entrySide = null; // 手動設為持倉 or 未設進場價 → 關閉自動偵測
                 }
 
+                editingCoin = null; // 清除編輯結束的旗標
                 saveSettings();
                 renderCards();
 
@@ -682,7 +685,13 @@
         let countdown = 180;
         setInterval(() => {
             countdown--;
-            document.getElementById('countdown').innerText = countdown;
+            const cdEl = document.getElementById('countdown');
+            if (editingCoin) {
+                cdEl.innerHTML = `<span style="color:#fbbf24">⏸ ${countdown}</span>`;
+            } else {
+                cdEl.style.color = '';
+                cdEl.textContent = countdown;
+            }
             if (countdown <= 0) { countdown = 180; fetchExchangeData(); }
         }, 1000);
 
