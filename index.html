@@ -299,7 +299,10 @@
                                 stopLoss: cloudData[coin].stopLoss || 0,
                                 isHolding: cloudData[coin].isHolding || false,
                                 lastManualUpdate: cloudData[coin].lastManualUpdate || 0,
-                                note: cloudData[coin].note || ''
+                                note: cloudData[coin].note || '',
+                                entrySide: cloudData[coin].entrySide || null,
+                                capital: cloudData[coin].capital || 0,
+                                leverage: cloudData[coin].leverage || 1
                             };
                         }
                     });
@@ -317,14 +320,47 @@
         // 初始化設定
         COIN_LIST.forEach(coin => {
             if (!userSettings[coin]) {
-                userSettings[coin] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '' };
-            } else if (userSettings[coin].note === undefined) {
-                userSettings[coin].note = '';
+                userSettings[coin] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '', entrySide: null, capital: 0, leverage: 1 };
+            } else {
+                if (userSettings[coin].note === undefined) userSettings[coin].note = '';
+                if (userSettings[coin].entrySide === undefined) userSettings[coin].entrySide = null;
+                if (userSettings[coin].capital === undefined) userSettings[coin].capital = 0;
+                if (userSettings[coin].leverage === undefined) userSettings[coin].leverage = 1;
             }
         });
 
         function saveSettings() {
             localStorage.setItem('coinSettingsV3', JSON.stringify(userSettings));
+        }
+
+        // ── 自動進場偵測 ──────────────────────────────────────────
+        function checkAutoEntry() {
+            let triggered = [];
+            COIN_LIST.forEach(coin => {
+                const set = userSettings[coin];
+                const mkt = marketData[coin];
+                if (!set || !mkt || set.isHolding || !set.entry || !set.entrySide) return;
+                const price = Number(mkt.price);
+                const entry = Number(set.entry);
+                if (price <= 0 || entry <= 0) return;
+
+                let shouldEnter = false;
+                if (set.entrySide === 'breakout' && price >= entry) shouldEnter = true;
+                if (set.entrySide === 'dip'      && price <= entry) shouldEnter = true;
+
+                if (shouldEnter) {
+                    userSettings[coin].isHolding = true;
+                    userSettings[coin].entrySide = null;
+                    userSettings[coin].lastManualUpdate = Date.now();
+                    triggered.push(coin);
+                }
+            });
+            if (triggered.length > 0) {
+                saveSettings();
+                pushToCloud(false);
+                renderCards();
+                triggered.forEach(c => showToast(`🚀 ${c} 已自動切換為進場！`, 'success'));
+            }
         }
 
         async function fetchExchangeData() {
@@ -349,6 +385,7 @@
                     marketData[coin] = pMap[coin] || gMap[coin] || oMap[coin] || { price: 0, change: 0, vol: 0, src: '--' };
                 });
                 renderCards();
+                checkAutoEntry();
             } catch (e) {
                 console.error("更新失敗:", e);
                 document.getElementById('status-indicator').innerHTML = '<span class="text-red-500">網路連線異常</span>';
@@ -372,21 +409,40 @@
                 displayDiv.classList.add('hidden');
                 editDiv.classList.remove('hidden');
             } else {
-                userSettings[coin].entry = parseFloat(document.getElementById(`entry-${coin}`).value) || 0;
-                userSettings[coin].target = parseFloat(document.getElementById(`target-${coin}`).value) || 0;
+                const newEntry     = parseFloat(document.getElementById(`entry-${coin}`).value) || 0;
+                const newIsHolding = document.getElementById(`holding-${coin}`).value === 'true';
+
+                userSettings[coin].entry    = newEntry;
+                userSettings[coin].target   = parseFloat(document.getElementById(`target-${coin}`).value) || 0;
                 userSettings[coin].stopLoss = parseFloat(document.getElementById(`sl-${coin}`).value) || 0;
-                userSettings[coin].isHolding = document.getElementById(`holding-${coin}`).value === 'true';
+                userSettings[coin].isHolding = newIsHolding;
                 userSettings[coin].note = document.getElementById(`note-${coin}`) ? document.getElementById(`note-${coin}`).value : '';
-                userSettings[coin].lastManualUpdate = Date.now(); // 自動記錄更新時間
+                userSettings[coin].capital  = parseFloat(document.getElementById(`capital-${coin}`).value) || 0;
+                userSettings[coin].leverage = parseFloat(document.getElementById(`leverage-${coin}`).value) || 1;
+                userSettings[coin].lastManualUpdate = Date.now();
+
+                // ── 定向觸及判斷：儲存時自動標記方向 ──
+                if (!newIsHolding && newEntry > 0) {
+                    const currentPrice = Number((marketData[coin] || {}).price || 0);
+                    if (currentPrice > 0 && currentPrice < newEntry) {
+                        userSettings[coin].entrySide = 'breakout'; // 現價低於進場價 → 等待向上突破
+                    } else if (currentPrice > 0 && currentPrice > newEntry) {
+                        userSettings[coin].entrySide = 'dip';      // 現價高於進場價 → 等待回測接刀
+                    } else {
+                        userSettings[coin].entrySide = null;       // 價格相同，不自動偵測
+                    }
+                } else {
+                    userSettings[coin].entrySide = null; // 手動設為持倉 or 未設進場價 → 關閉自動偵測
+                }
+
                 saveSettings();
                 renderCards();
-                
+
                 const indicator = document.getElementById('sync-status');
                 const oldText = indicator.innerText;
                 const oldClass = indicator.className;
                 indicator.className = "text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-500";
                 indicator.innerText = "正在上傳雲端...";
-                
                 pushToCloud(false).then(() => {
                     indicator.className = oldClass;
                     indicator.innerText = oldText;
@@ -412,6 +468,17 @@
             if(hours < 24) return `${hours} 小時前`;
             const date = new Date(ts);
             return `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2,'0')}`;
+        }
+
+        // 狀態徽章 helper
+        function getStatusBadge(set) {
+            if (set.isHolding)
+                return '<span class="text-[10px] px-2 py-1 rounded border border-blue-500/50 text-blue-400 bg-blue-500/5">● 持倉中</span>';
+            if (set.entrySide === 'breakout')
+                return '<span class="text-[10px] px-2 py-1 rounded border border-amber-500/50 text-amber-400 bg-amber-500/10">⬆ 等待突破</span>';
+            if (set.entrySide === 'dip')
+                return '<span class="text-[10px] px-2 py-1 rounded border border-cyan-500/50 text-cyan-400 bg-cyan-500/10">⬇ 等待接刀</span>';
+            return '<span class="text-[10px] px-2 py-1 rounded border border-slate-700 text-slate-500">○ 觀望中</span>';
         }
 
         function renderCards() {
@@ -440,18 +507,51 @@
                 
                 let distanceText = '';
                 if(mkt.price > 0) {
-                    if(set.isHolding && set.target > 0) {
-                        const d = ((set.target - mkt.price) / mkt.price * 100).toFixed(2);
-                        distanceText = `<div class="mt-3 flex justify-between text-xs"><span class="text-slate-500">距目標:</span><span class="${d <= 0 ? 'text-green-400 font-bold' : 'text-blue-400'}">${d}%</span></div>`;
-                    } else if (!set.isHolding && set.entry > 0) {
-                        const dValue = ((set.entry - mkt.price) / set.entry * 100);
-                        if (dValue < 0) {
-                            distanceText = `<div class="mt-3 text-center py-2 text-xs font-bold text-red-400 bg-red-900/20 rounded border border-red-500/20">似乎錯過了</div>`;
+                    const price = Number(mkt.price);
+                    const entry = Number(set.entry);
+                    if(set.isHolding) {
+                        let leftPart = '', rightPart = '';
+                        if (entry > 0) {
+                            const ed = ((price - entry) / entry * 100);
+                            const edSign = ed >= 0 ? '+' : '';
+                            const edColor = ed >= 0 ? 'text-green-400' : 'text-red-400';
+                            leftPart = `<span class="flex items-center gap-1"><span class="text-slate-500">距進場:</span><span class="${edColor} font-mono">${edSign}${ed.toFixed(2)}%</span></span>`;
+                        }
+                        if (set.target > 0) {
+                            const d = ((set.target - price) / price * 100).toFixed(2);
+                            rightPart = `<span class="flex items-center gap-1"><span class="text-slate-500">距目標:</span><span class="${d <= 0 ? 'text-green-400 font-bold' : 'text-blue-400'} font-mono">${d}%</span></span>`;
+                        }
+                        if (leftPart || rightPart) {
+                            distanceText = `<div class="mt-3 flex justify-between text-xs">${leftPart}${rightPart}</div>`;
+                        }
+                    } else if (!set.isHolding && entry > 0) {
+                        if (set.entrySide === 'breakout') {
+                            const gap = ((entry - price) / entry * 100).toFixed(2);
+                            distanceText = `<div class="mt-3 flex justify-between text-xs"><span class="text-slate-500">距突破進場:</span><span class="text-amber-400">+${gap}%</span></div>`;
+                        } else if (set.entrySide === 'dip') {
+                            const gap = ((price - entry) / entry * 100).toFixed(2);
+                            distanceText = `<div class="mt-3 flex justify-between text-xs"><span class="text-slate-500">距接刀進場:</span><span class="text-cyan-400">-${gap}%</span></div>`;
                         } else {
-                            const dText = (dValue > 0 ? '+' : '') + dValue.toFixed(2);
-                            distanceText = `<div class="mt-3 text-center py-1 text-xs text-slate-500 bg-slate-800/40 rounded">與計畫進場價落差: ${dText}%</div>`;
+                            const dValue = ((entry - price) / entry * 100);
+                            if (dValue < 0) {
+                                distanceText = `<div class="mt-3 text-center py-2 text-xs font-bold text-red-400 bg-red-900/20 rounded border border-red-500/20">似乎錯過了</div>`;
+                            } else {
+                                distanceText = `<div class="mt-3 text-center py-1 text-xs text-slate-500 bg-slate-800/40 rounded">與計畫進場價落差: +${dValue.toFixed(2)}%</div>`;
+                            }
                         }
                     }
+                }
+
+                // ── 即時盈虧計算 ──
+                let pnlText = '';
+                if (set.isHolding && set.capital > 0 && Number(set.entry) > 0 && Number(mkt.price) > 0) {
+                    const p = Number(mkt.price), e = Number(set.entry), lev = Number(set.leverage) || 1;
+                    const pnlPct = (p - e) / e * lev * 100;
+                    const pnlUsd = set.capital * lev * (p - e) / e;
+                    const sign = pnlPct >= 0 ? '+' : '';
+                    const pnlColor = pnlPct >= 0 ? 'text-green-400' : 'text-red-400';
+                    const pnlBg   = pnlPct >= 0 ? 'bg-green-900/20 border-green-500/20' : 'bg-red-900/20 border-red-500/20';
+                    pnlText = `<div class="mt-2 flex justify-between items-center text-xs px-3 py-1.5 rounded-lg border ${pnlBg}"><span class="text-slate-400">💰 即時盈虧 <span class="text-slate-600">(${lev}x)</span></span><span class="${pnlColor} font-mono font-bold">${sign}$${Math.abs(pnlUsd).toFixed(2)}</span></div>`;
                 }
 
                 const card = document.createElement('div');
@@ -475,17 +575,16 @@
                     <div class="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
                         <div id="display-${coin}">
                             <div class="flex justify-between items-center mb-3">
-                                <span class="text-[10px] px-2 py-1 rounded border ${set.isHolding ? 'border-blue-500/50 text-blue-400 bg-blue-500/5' : 'border-slate-700 text-slate-500'}">
-                                    ${set.isHolding ? '● 持倉中' : '○ 觀望中'}
-                                </span>
+                                ${getStatusBadge(set)}
                                 ${isAdmin ? `<button onclick="toggleEdit('${coin}')" class="text-slate-500 hover:text-white transition-colors">編輯計畫 ✏️</button>` : ''}
                             </div>
                             <div class="grid grid-cols-3 gap-1 text-[10px] text-center">
-                                <div><p class="text-slate-600 mb-1 uppercase">Entry</p><p class="font-mono">${set.entry || '--'}</p></div>
-                                <div><p class="text-green-500/60 mb-1 uppercase">Target</p><p class="font-mono">${set.target || '--'}</p></div>
-                                <div><p class="text-red-500/60 mb-1 uppercase">Stop</p><p class="font-mono">${set.stopLoss || '--'}</p></div>
+                                <div><p class="text-slate-600 mb-1 uppercase">Entry</p><p class="font-mono break-all">${set.entry ? formatPrice(set.entry) : '--'}</p></div>
+                                <div><p class="text-green-500/60 mb-1 uppercase">Target</p><p class="font-mono break-all">${set.target ? formatPrice(set.target) : '--'}</p></div>
+                                <div><p class="text-red-500/60 mb-1 uppercase">Stop</p><p class="font-mono break-all">${set.stopLoss ? formatPrice(set.stopLoss) : '--'}</p></div>
                             </div>
                             ${distanceText}
+                            ${pnlText}
                         </div>
 
                         <div id="edit-${coin}" class="hidden">
@@ -497,10 +596,11 @@
                                         <option value="true" ${set.isHolding ? 'selected' : ''}>已進場 (Holding)</option>
                                     </select>
                                 </div>
-                                <div><label class="text-[10px] text-slate-500 uppercase block mb-1">進場價</label><input type="number" id="entry-${coin}" value="${set.entry}" class="w-full text-xs p-2"></div>
-                                <div><label class="text-[10px] text-red-500/50 uppercase block mb-1">停損價</label><input type="number" id="sl-${coin}" value="${set.stopLoss}" class="w-full text-xs p-2"></div>
-                                <div><label class="text-[10px] text-green-500/50 uppercase block mb-1">目標價</label><input type="number" id="target-${coin}" value="${set.target}" class="w-full text-xs p-2"></div>
+                                <div><label class="text-[10px] text-slate-500 uppercase block mb-1">進場價</label><input type="number" id="entry-${coin}" value="${set.entry || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div>
+                                <div><label class="text-[10px] text-red-500/50 uppercase block mb-1">停損價</label><input type="number" id="sl-${coin}" value="${set.stopLoss || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div>
+                                <div><label class="text-[10px] text-green-500/50 uppercase block mb-1">目標價</label><input type="number" id="target-${coin}" value="${set.target || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div>
                                 <div><label class="text-[10px] text-yellow-500/50 uppercase block mb-1">備註 (十字內)</label><input type="text" id="note-${coin}" value="${set.note || ''}" maxlength="10" placeholder="可選填..." class="w-full text-xs p-2" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; border-radius: 6px;"></div>
+                                <div class="col-span-2 mt-1 pt-3 border-t border-slate-800/50"><p class="text-[10px] text-purple-400/70 uppercase mb-2 font-bold">💰 資金計算</p><div class="grid grid-cols-2 gap-3"><div><label class="text-[10px] text-slate-500 uppercase block mb-1">本金 (USDT)</label><input type="number" id="capital-${coin}" value="${set.capital || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div><div><label class="text-[10px] text-slate-500 uppercase block mb-1">槓桿 (x)</label><input type="number" id="leverage-${coin}" value="${set.leverage || 1}" min="1" max="100" onfocus="if(parseFloat(this.value)===1&&'${set.capital}'==='0')this.value=''" onblur="if(this.value===''||parseFloat(this.value)<1)this.value='1'" class="w-full text-xs p-2"></div></div></div>
                             </div>
                             <button onclick="toggleEdit('${coin}')" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold transition-all shadow-lg shadow-blue-900/20">儲存並記錄時間</button>
                         </div>
