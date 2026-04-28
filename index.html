@@ -1,701 +1,1103 @@
 <!DOCTYPE html>
 <html lang="zh-TW" class="dark">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>山寨幣策略監控庫 | Altcoin Vault</title>
-    
-    <!-- iOS / Android Web App 設定 -->
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>策略看板 | Strategy Board</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="策略監控">
+    <meta name="apple-mobile-web-app-title" content="策略看板">
     <meta name="theme-color" content="#0B0E14">
-    
-    <!-- 網頁與 App 圖示設定 (請確保將圖示檔案命名為 icon.png 並放在同一資料夾內) -->
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="shortcut icon" href="icon.png">
-    
-    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0B0E14; color: #E2E8F0; font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; }
-        .glass-card { background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.3s ease; }
-        .glass-card:hover { border-color: rgba(59, 130, 246, 0.4); background: rgba(30, 41, 59, 0.6); }
-        input[type="number"], select { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; border-radius: 6px; }
-        input:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); }
-        /* 目標達成——發光金框 */
+        :root {
+            --bg-root: #0B0E14;
+            --bg-surface: #12161E;
+            --bg-card: #1A1F2E;
+            --bg-elevated: #1E2436;
+            --bg-input: #0F1219;
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(99, 138, 255, 0.35);
+            --text-primary: #E8ECF4;
+            --text-secondary: #8B95A8;
+            --text-muted: #525C6F;
+            --accent: #638AFF;
+            --green: #34D399;
+            --red: #F87171;
+            --amber: #FBBF24;
+            --cyan: #22D3EE
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            background: var(--bg-root);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 2px
+        }
+
+        input,
+        select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-default);
+            color: #fff;
+            border-radius: 8px;
+            transition: border-color .15s
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(99, 138, 255, 0.15)
+        }
+
+        .coin-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: all .2s ease;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        .coin-card:hover {
+            background: var(--bg-elevated);
+            border-color: var(--border-hover)
+        }
+
+        .coin-card:active {
+            transform: scale(0.98)
+        }
+
+        .coin-card.holding {
+            border-left: 3px solid var(--accent)
+        }
+
+        .coin-card.target-hit {
+            border: 1px solid rgba(251, 191, 36, 0.5);
+            border-left: 3px solid var(--amber);
+            animation: gold-pulse 2.5s ease-in-out infinite
+        }
+
         @keyframes gold-pulse {
-            0%, 100% { box-shadow: 0 0 12px rgba(251,191,36,0.4), 0 0 30px rgba(251,191,36,0.15); }
-            50%       { box-shadow: 0 0 24px rgba(251,191,36,0.7), 0 0 55px rgba(251,191,36,0.3); }
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px rgba(251, 191, 36, 0.2)
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(251, 191, 36, 0.3)
+            }
         }
-        .card-target-hit {
-            border: 1px solid rgba(251,191,36,0.75) !important;
-            background: rgba(40, 35, 15, 0.55) !important;
-            animation: gold-pulse 2s ease-in-out infinite;
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(8px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
         }
-        .card-target-hit:hover { border-color: rgba(251,191,36,1) !important; }
+
+        .coin-card {
+            animation: fadeUp .3s ease both
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all .3s ease;
+            z-index: 40
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible
+        }
+
+        #side-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: min(320px, 85vw);
+            background: var(--bg-surface);
+            border-left: 1px solid var(--border-subtle);
+            transform: translateX(100%);
+            transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+            z-index: 50;
+            overflow-y: auto;
+            padding: 24px 20px
+        }
+
+        #side-panel.open {
+            transform: translateX(0)
+        }
+
+        #bottom-sheet {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            max-height: 85vh;
+            background: var(--bg-surface);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px 20px 0 0;
+            transform: translateY(100%);
+            transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+            z-index: 50;
+            overflow-y: auto;
+            padding: 12px 20px 32px
+        }
+
+        #bottom-sheet.open {
+            transform: translateY(0)
+        }
+
+        .sheet-handle {
+            width: 36px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
+            margin: 0 auto 16px
+        }
+
+        #sort-menu {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-surface);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px 20px 0 0;
+            transform: translateY(100%);
+            transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+            z-index: 45;
+            padding: 16px 20px 100px
+        }
+
+        #sort-menu.open {
+            transform: translateY(0)
+        }
+
+        #pill-menu {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 46;
+            background: rgba(18, 22, 30, 0.78);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50px;
+            padding: 5px 6px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4)
+        }
+
+        .pill-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 10px 14px;
+            border-radius: 44px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all .15s ease;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        .pill-btn:active {
+            transform: scale(0.95)
+        }
+
+        .pill-btn.active {
+            color: var(--accent);
+            background: rgba(99, 138, 255, 0.12)
+        }
+
+        .pill-filter {
+            flex: 1;
+            text-align: center;
+            padding: 10px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--accent);
+            cursor: pointer;
+            border-radius: 44px;
+            transition: all .15s ease;
+            -webkit-tap-highlight-color: transparent;
+            border: none;
+            background: transparent
+        }
+
+        .pill-filter:active {
+            transform: scale(0.95)
+        }
+
+        #pill-search {
+            display: none;
+            flex: 1;
+            align-items: center;
+            gap: 8px;
+            padding: 0 4px
+        }
+
+        #pill-search.active {
+            display: flex
+        }
+
+        #pill-search input {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            width: 100%;
+            padding: 8px 0
+        }
+
+        #pill-search input:focus {
+            outline: none;
+            box-shadow: none
+        }
+
+        .sort-opt {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all .15s ease;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        .sort-opt:hover {
+            background: rgba(255, 255, 255, 0.04)
+        }
+
+        .sort-opt:active {
+            transform: scale(0.98)
+        }
+
+        .sort-opt.active {
+            background: rgba(99, 138, 255, 0.1);
+            color: var(--accent)
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 13px 0;
+            border-bottom: 1px solid var(--border-subtle)
+        }
+
+        .detail-row:last-child {
+            border-bottom: none
+        }
+
+        .optional-detail {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all .3s ease;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+            margin-top: 0
+        }
+
+        .coin-card:hover .optional-detail {
+            max-height: 60px;
+            opacity: 1;
+            margin-top: 10px;
+            padding-top: 10px
+        }
+
+        .coin-card:active .optional-detail {
+            max-height: 60px;
+            opacity: 1;
+            margin-top: 10px;
+            padding-top: 10px
+        }
+
+        /* === GLOBAL DASHBOARD === */
+        #gd {
+            position: fixed;
+            bottom: 90px;
+            left: 14px;
+            z-index: 47;
+            width: 38px;
+            height: 38px;
+            background: rgba(15,18,25,0.96);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 19px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            overflow: hidden;
+            transition: all .35s cubic-bezier(.4,0,.2,1);
+            max-height: 38px;
+            cursor: pointer;
+        }
+        #gd:hover, #gd.open {
+            width: min(310px, calc(100vw - 28px));
+            border-radius: 16px;
+        }
+        #gd.open { max-height: 700px; height: auto; cursor: default; }
+        
+        #gd-header-wrap {
+            display: flex;
+            width: min(310px, calc(100vw - 28px));
+            height: 38px;
+            align-items: center;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent; user-select: none;
+        }
+        #gd-header-icon {
+            display: flex; justify-content: center; align-items: center;
+            width: 38px; height: 38px; flex-shrink: 0; font-size: 15px;
+        }
+        #gd-header-content {
+            display: flex; align-items: center; justify-content: space-between;
+            flex: 1; padding-right: 12px;
+            opacity: 0; transition: opacity .2s; white-space: nowrap;
+        }
+        #gd:hover #gd-header-content, #gd.open #gd-header-content {
+            opacity: 1;
+        }
+        #gd-body { padding: 0 12px 14px; }
+        .gd-lbl {
+            font-size: 9px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .06em; color: var(--text-muted); margin-bottom: 3px;
+        }
+        .gd-val { font-size: 13px; font-weight: 700; font-family: monospace; }
+        .gd-inp {
+            width: 100%; font-size: 12px; padding: 6px 8px; border-radius: 8px;
+            background: var(--bg-input); border: 1px solid var(--border-default);
+            color: #fff; transition: border-color .15s;
+        }
+        .gd-inp:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(99,138,255,.15); }
+        .gd-divider { height:1px; background:rgba(255,255,255,.05); margin: 10px 0; }
+        /* dual progress bars */
+        .prog-wrap { margin-top: 6px; }
+        .prog-row-labels { display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); margin-bottom:2px; }
+        .prog-track {
+            position: relative; height: 7px;
+            background: rgba(255,255,255,.06); border-radius: 99px;
+            overflow: visible; margin: 3px 0;
+        }
+        .prog-fill {
+            position:absolute; left:0; top:0; height:100%; border-radius:99px;
+            transition: width .6s ease;
+        }
+        .prog-dot {
+            position:absolute; top:50%; transform:translate(-50%,-50%);
+            width:11px; height:11px; border-radius:50%;
+            border: 2px solid #0F1219; transition: left .6s ease;
+        }
+        .prog-bot-labels { display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted); margin-top:2px; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8 pb-20">
 
-    <div class="max-w-7xl mx-auto">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 border-b border-slate-800 pb-6 gap-4">
-            <div>
-                <h1 class="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-                    策略監控庫 <span class="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-1 rounded tracking-widest border border-blue-500/30">PRO</span>
-                </h1>
-                <p class="text-slate-500 text-sm mt-2">自動化階梯報價：Pionex &rarr; Gate.io &rarr; OKX</p>
-            </div>
-            <div class="flex flex-col items-end gap-1">
-                <div id="status-indicator" class="text-sm text-green-400 flex items-center gap-2">
-                    <span class="relative flex h-2 w-2">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    市場連線正常
+<body class="min-h-screen pb-24">
+
+    <!-- Global Dashboard -->
+    <div id="gd">
+        <div id="gd-header-wrap" onclick="toggleGD()">
+            <div id="gd-header-icon">📊</div>
+            <div id="gd-header-content">
+                <div style="display:flex;align-items:center;gap:7px">
+                    <span style="font-size:11px;font-weight:600;color:var(--text-secondary)">資金看板</span>
+                    <span id="gd-pill" style="font-size:10px;font-weight:700;font-family:monospace"></span>
                 </div>
-                <div class="text-[11px] text-slate-500 font-mono uppercase">下次更新: <span id="countdown" class="text-blue-400">180</span> 秒</div>
-                <div class="flex gap-1.5 mt-0.5">
-                    <button onclick="exportSettings()" title="匯出策略備份 JSON" class="text-[10px] px-2 py-1 bg-slate-800/80 text-slate-400 border border-slate-700 rounded hover:bg-amber-500/20 hover:text-amber-400 hover:border-amber-500/50 transition font-bold">⬇ 匯出</button>
-                    <button onclick="importSettings()" title="匯入策略備份 JSON" class="text-[10px] px-2 py-1 bg-slate-800/80 text-slate-400 border border-slate-700 rounded hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/50 transition font-bold">⬆ 匯入</button>
-                </div>
+                <svg id="gd-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color:var(--text-muted);transition:transform .35s"><path d="M18 15l-6-6-6 6"/></svg>
             </div>
         </div>
-
-        <div class="mb-5 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
-            <details class="group">
-                <summary class="text-xs text-slate-400 font-bold cursor-pointer outline-none hover:text-white transition flex justify-between items-center list-none">
-                    <span class="flex items-center gap-2">⚙️ 系統設定與授權 (Admin)</span>
-                    <span id="sync-status" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500">訪客觀看模式</span>
-                </summary>
-                <div class="mt-4 border-t border-slate-800 pt-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">預設載入區域 (Bin ID)</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="sync-bin" placeholder="訪客預設會讀取此 Bin ID" class="flex-1 text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded">
-                                <button id="guest-refresh-btn" onclick="guestRefresh()" class="px-3 bg-green-600/20 text-green-400 border border-green-500/30 rounded text-xs hover:bg-green-600/40 transition font-bold whitespace-nowrap">重新讀取 🔄</button>
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-3">
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">管理員帳號</label>
-                                <input type="email" id="admin-user" placeholder="輸入帳號..." class="w-full text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded" autocomplete="off">
-                            </div>
-                            <div>
-                                <label class="block text-[10px] text-slate-500 mb-1.5 font-bold uppercase">管理員密碼</label>
-                                <div class="flex gap-2">
-                                    <input type="password" id="admin-pass" placeholder="輸入密碼..." class="flex-1 text-xs p-2 bg-slate-800 border border-slate-700 text-white rounded" autocomplete="off">
-                                    <button onclick="toggleAdminLogin()" id="login-btn" class="px-3 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded text-xs hover:bg-blue-600/40 transition font-bold">登入</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="admin-tools" class="md:col-span-2 flex flex-col md:flex-row gap-2 hidden">
-                            <button onclick="createCloudBin()" class="flex-1 py-2 text-xs bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded hover:bg-indigo-600/40 transition font-bold shadow-lg">1. 建立全新公開區塊 (Public Bin)</button>
-                            <button id="push-btn" onclick="pushToCloud(true)" class="flex-1 py-2 text-xs bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded hover:bg-blue-600/40 transition font-bold shadow-lg">強制上傳/覆蓋雲端 ⬆️</button>
-                            <button id="fetch-btn" onclick="fetchFromCloud(false)" class="flex-1 py-2 text-xs bg-green-600/20 text-green-400 border border-green-500/30 rounded hover:bg-green-600/40 transition font-bold shadow-lg">2. 從雲端強制讀取 ⬇️</button>
-                        </div>
-                    </div>
-                    <div class="mt-4 text-[11px] text-slate-400 bg-slate-800/50 p-2 rounded leading-relaxed border border-slate-700/50">
-                        <span class="text-white font-bold">💡 如何分享給別人觀看？</span><br>
-                        先解鎖編輯狀態，點選「1. 建立全新公開區塊」取得一組 <span class="text-blue-400">Bin ID</span>。<br>
-                        然後用文字編輯器打開這份 <code>index.html</code> 檔案，將大約第 112 行的 <code>DEFAULT_BIN_ID</code> 替換成您的這組 <span class="text-blue-400">Bin ID</span>。<br>
-                        重新發布後，任何訪客進入網頁預設都會載入您的清單，但<span class="text-red-400">只有持有 Master Key 的人能解鎖並修改內容！</span>
-                    </div>
+        <div id="gd-body">
+            <!-- Row 1: principal + realized pnl -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                <div>
+                    <p class="gd-lbl">清單總投入 (自動加總)</p>
+                    <div class="gd-inp" id="gd-principal-disp" style="color:var(--text-muted);cursor:default;line-height:1.6">—</div>
                 </div>
-            </details>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50">
-            <div class="md:col-span-1">
-                <label class="block text-[11px] text-slate-500 mb-1.5 font-bold">搜尋幣種</label>
-                <input type="text" id="searchInput" placeholder="輸入名稱 (如: PEPE)..." class="w-full px-4 py-2 bg-slate-900/60 border border-slate-800 text-sm focus:ring-1 focus:ring-blue-500 outline-none transition-all">
-            </div>
-            <div class="md:col-span-2">
-                <label class="block text-[11px] text-slate-500 mb-1.5 font-bold">自訂排序條件</label>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <button onclick="changeSort('name')" class="sort-btn px-3 py-2 text-xs rounded bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700" id="sort-name">名稱 (A-Z)</button>
-                    <button onclick="changeSort('targetDist')" class="sort-btn px-3 py-2 text-xs rounded bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700" id="sort-targetDist">目標距離</button>
-                    <button onclick="changeSort('change')" class="sort-btn px-3 py-2 text-xs rounded bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700" id="sort-change">24H 漲幅</button>
-                    <button onclick="changeSort('updateTime')" class="sort-btn px-3 py-2 text-xs rounded bg-blue-600/20 text-blue-400 border border-blue-500/40" id="sort-updateTime">更新時間</button>
+                <div>
+                    <p class="gd-lbl">歷史已實現損益</p>
+                    <input class="gd-inp" type="number" id="gd-realized" placeholder="+/-" oninput="gdSaveLocal()" onchange="gdSaveCloud()">
                 </div>
             </div>
-        </div>
+            <!-- Row 2: target profit + float pnl (auto) -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+                <div>
+                    <p class="gd-lbl">目標總獲利 (自動估算)</p>
+                    <div class="gd-inp" id="gd-target-profit-disp" style="color:var(--text-muted);cursor:default;line-height:1.6">—</div>
+                </div>
+                <div>
+                    <p class="gd-lbl">浮動損益 (自動)</p>
+                    <div class="gd-inp" id="gd-float" style="color:var(--text-muted);cursor:default;line-height:1.6">—</div>
+                </div>
+            </div>
+            <!-- Total profit highlight -->
+            <div style="background:rgba(99,138,255,.08);border:1px solid rgba(99,138,255,.15);border-radius:10px;padding:8px 10px;margin-bottom:10px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <p class="gd-lbl" style="margin:0">目前總獲利</p>
+                    <span id="gd-total-profit" class="gd-val" style="color:var(--accent)">--</span>
+                </div>
+            </div>
 
-        <div id="coin-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            <div class="col-span-full py-20 text-center flex flex-col items-center gap-4">
-                <div class="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                <p class="text-slate-500 animate-pulse text-sm">正在從全球交易所同步最新行情...</p>
+            <div class="gd-divider"></div>
+
+            <!-- Bar A: % progress -->
+            <div class="prog-wrap">
+                <div class="prog-row-labels">
+                    <span style="color:var(--text-muted)">漲幅進度 (%)</span>
+                    <span id="gd-bar-a-pct" style="color:var(--green);font-weight:700"></span>
+                    <span style="color:var(--text-muted)">目標 100%</span>
+                </div>
+                <div class="prog-track">
+                    <div class="prog-fill" id="gd-bar-a-fill" style="background:linear-gradient(90deg,#638AFF,#22D3EE)"></div>
+                    <div class="prog-dot" id="gd-bar-a-dot" style="background:var(--accent)"></div>
+                </div>
+                <div class="prog-bot-labels">
+                    <span>0%</span>
+                    <span id="gd-bar-a-mid" style="color:var(--accent)"></span>
+                    <span>100%</span>
+                </div>
+            </div>
+
+            <!-- Bar B: USDT progress -->
+            <div class="prog-wrap" style="margin-top:10px">
+                <div class="prog-row-labels">
+                    <span style="color:var(--text-muted)">資金進度 (USDT)</span>
+                    <span id="gd-bar-b-lbl" style="font-weight:600"></span>
+                    <span id="gd-bar-b-right" style="color:var(--text-muted)"></span>
+                </div>
+                <div class="prog-track">
+                    <div class="prog-fill" id="gd-bar-b-fill" style="background:linear-gradient(90deg,#34D399,#22D3EE)"></div>
+                    <div class="prog-dot" id="gd-bar-b-dot" style="background:var(--green)"></div>
+                </div>
+                <div class="prog-bot-labels">
+                    <span id="gd-bar-b-l">$0</span>
+                    <span id="gd-bar-b-m" style="color:var(--green)"></span>
+                    <span id="gd-bar-b-r">--</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <script>
-        const COIN_LIST = ['1INCH', 'A', 'A2Z', 'AB', 'ACH', 'ACT', 'AEVO', 'AGI', 'AI', 'ALGO', 'ALT', 'ANIME', 'APE', 'APT', 'ARPA', 'ATA', 'AWE', 'AXS', 'BABYDOGE', 'BAN', 'BEL', 'BLUR', 'BOME', 'BONK', 'C98', 'CAKE', 'CAT', 'CELR', 'CFX', 'CHR', 'CHZ', 'CKB', 'COS', 'COTI', 'CRO', 'CSPR', 'CTSI', 'CVC', 'DEGO', 'DENT', 'DGB', 'DODO', 'DOGE', 'DOGS', 'DOT', 'DUSK', 'EDU', 'ENA', 'ENJ', 'ENS', 'FET', 'FLM', 'FLOKI', 'FLR', 'FORM', 'FTT', 'FUN', 'GALA', 'GEAR', 'GMT', 'GOAT', 'GRT', 'GT', 'HBAR', 'HFT', 'HIGH', 'HIVE', 'HMSTR', 'HOOK', 'HTX', 'ICP', 'ID', 'IDEX', 'IMX', 'IO', 'IOST', 'IOTA', 'IQ', 'JASMY', 'JOE', 'KAVA', 'KDA', 'KNC', 'LAT', 'LINK', 'LRC', 'LTC', 'LUNC', 'MANA', 'MANTA', 'MAV', 'MBOX', 'MEME', 'MOG', 'NEAR', 'NEIRO', 'NFT', 'NKN', 'NOT', 'OM', 'ONE', 'OXT', 'PENGU', 'PEOPLE', 'PEPE', 'PHA', 'PI', 'PIXEL', 'PNUT', 'POL', 'POND', 'PORTAL', 'PSG', 'PYTH', 'QKC', 'RAD', 'RARE', 'RATS', 'RDNT', 'RSR', 'RUNE', 'SAND', 'SATS', 'SEI', 'SFP', 'SHIB', 'SKL', 'SOL', 'SPELL', 'STRK', 'STX', 'SUI', 'SUSHI', 'SYS', 'TFUEL', 'THETA', 'TKO', 'TLM', 'TRUMP', 'TRX', 'TURBO', 'UNI', 'VOXEL', 'VTHO', 'W', 'WAXP', 'WEN', 'WIN', 'WOO', 'XAI', 'XEC', 'XVG', 'XVS', 'YGG', 'ZBCN', 'ZIL'];
-        const PROXY_URL = 'https://cors.eu.org/'; 
-        let marketData = {};
-        let currentSort = 'updateTime';
-        let editingCoin = null; // 编辑中的幣種，有値時跟止 renderCards() 覆蓋 UI
-        let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
+    <!-- Overlays -->
+    <div id="side-overlay" class="overlay" onclick="toggleSidePanel()"></div>
+    <div id="sheet-overlay" class="overlay" onclick="closeBottomSheet()"></div>
+    <div id="sort-overlay" class="overlay" style="z-index:44" onclick="toggleSortMenu()"></div>
 
-        // 雲端同步與權限設定
-        const DEFAULT_BIN_ID = '69ef9d4636566621a8fa2ae7'; // 公開雲端區塊 ID，訪客打開頁面即自動同步最新資料
-        const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifIubFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
-        const ADMIN_USER = 'a0983818451@gmail.com';
-        const ADMIN_PASS = 'Jack09040904';
+    <!-- Side Panel (個人中心) -->
+    <div id="side-panel">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-bold">個人中心</h2>
+            <button onclick="toggleSidePanel()"
+                class="text-[#525C6F] hover:text-white text-xl transition">&times;</button>
+        </div>
+        <div id="sync-status"
+            class="text-[11px] px-3 py-1.5 rounded-lg bg-white/[0.04] text-[#525C6F] font-medium mb-6 text-center">
+            訪客觀看模式</div>
 
-        let isAdmin = localStorage.getItem('isAdmin') === 'true';
-        let cloudKey = isAdmin ? DEFAULT_API_KEY : '';
-        let cloudBin = localStorage.getItem('syncBin') || DEFAULT_BIN_ID;
+        <div class="mb-6">
+            <p class="text-[10px] text-[#525C6F] font-semibold uppercase tracking-wide mb-2">雲端區塊 (Bin ID)</p>
+            <div class="flex gap-2">
+                <input type="text" id="sync-bin" placeholder="Bin ID" class="flex-1 text-xs p-2.5">
+                <button id="guest-refresh-btn" onclick="guestRefresh()"
+                    class="px-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs hover:bg-emerald-500/20 transition font-semibold whitespace-nowrap">🔄</button>
+            </div>
+        </div>
 
-        setTimeout(() => {
-            if(document.getElementById('admin-user')) {
-                document.getElementById('sync-bin').value = cloudBin;
-                updateSyncStatus();
-                if(isAdmin) {
-                    document.getElementById('admin-user').value = ADMIN_USER;
-                    document.getElementById('admin-pass').value = '********';
-                    document.getElementById('admin-user').disabled = true;
-                    document.getElementById('admin-pass').disabled = true;
-                    document.getElementById('admin-tools').classList.remove('hidden');
-                    document.getElementById('login-btn').innerText = '登出';
-                    document.getElementById('login-btn').classList.replace('text-blue-400', 'text-red-400');
-                    document.getElementById('login-btn').classList.replace('bg-blue-600/20', 'bg-red-600/20');
-                    document.getElementById('login-btn').classList.replace('border-blue-500/30', 'border-red-500/30');
-                }
+        <div class="mb-6 space-y-3">
+            <p class="text-[10px] text-[#525C6F] font-semibold uppercase tracking-wide">管理員登入</p>
+            <input type="email" id="admin-user" placeholder="帳號" class="w-full text-xs p-2.5" autocomplete="off">
+            <input type="password" id="admin-pass" placeholder="密碼" class="w-full text-xs p-2.5" autocomplete="off">
+            <button onclick="toggleAdminLogin()" id="login-btn"
+                class="w-full py-2.5 bg-[#638AFF]/10 text-[#638AFF] border border-[#638AFF]/25 rounded-lg text-xs hover:bg-[#638AFF]/20 transition font-semibold">登入</button>
+        </div>
+
+        <div id="admin-tools" class="mb-6 space-y-2 hidden">
+            <button onclick="createCloudBin()"
+                class="w-full py-2.5 text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-lg hover:bg-indigo-500/20 transition font-semibold">建立全新公開區塊</button>
+            <button id="push-btn" onclick="pushToCloud(true)"
+                class="w-full py-2.5 text-xs bg-[#638AFF]/10 text-[#638AFF] border border-[#638AFF]/20 rounded-lg hover:bg-[#638AFF]/20 transition font-semibold">強制上傳雲端
+                ⬆️</button>
+            <button id="fetch-btn" onclick="fetchFromCloud(false)"
+                class="w-full py-2.5 text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg hover:bg-emerald-500/20 transition font-semibold">從雲端讀取
+                ⬇️</button>
+        </div>
+
+        <div class="border-t border-white/5 pt-4 space-y-2">
+            <p class="text-[10px] text-[#525C6F] font-semibold uppercase tracking-wide mb-3">資料備份</p>
+            <button onclick="exportSettings()"
+                class="w-full py-2.5 text-xs bg-white/[0.03] text-[#8B95A8] border border-white/[0.06] rounded-lg hover:bg-amber-500/10 hover:text-amber-400 transition font-medium">⬆
+                匯出 JSON 備份</button>
+            <button onclick="importSettings()"
+                class="w-full py-2.5 text-xs bg-white/[0.03] text-[#8B95A8] border border-white/[0.06] rounded-lg hover:bg-[#638AFF]/10 hover:text-[#638AFF] transition font-medium">⬇
+                匯入 JSON 備份</button>
+        </div>
+    </div>
+
+    <!-- Bottom Sheet -->
+    <div id="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div id="sheet-content"></div>
+    </div>
+
+    <!-- Sort/Filter Menu -->
+    <div id="sort-menu">
+        <div class="sheet-handle"></div>
+        <p class="text-[10px] text-[#525C6F] font-semibold uppercase tracking-wide mb-3">狀態篩選</p>
+        <div class="flex gap-2 mb-5" id="filter-btns">
+            <button onclick="setFilter('all')" data-f="all"
+                class="flex-1 py-2 text-xs rounded-lg font-semibold transition border border-[#638AFF]/25 bg-[#638AFF]/10 text-[#638AFF]">全部</button>
+            <button onclick="setFilter('holding')" data-f="holding"
+                class="flex-1 py-2 text-xs rounded-lg font-semibold transition border border-white/[0.06] bg-white/[0.03] text-[#8B95A8]">已進場</button>
+            <button onclick="setFilter('watching')" data-f="watching"
+                class="flex-1 py-2 text-xs rounded-lg font-semibold transition border border-white/[0.06] bg-white/[0.03] text-[#8B95A8]">未進場</button>
+        </div>
+        <p class="text-[10px] text-[#525C6F] font-semibold uppercase tracking-wide mb-3">排序條件</p>
+        <div id="sort-opts" class="space-y-1"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-30 px-4 py-3"
+        style="background:rgba(11,14,20,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)">
+        <div class="max-w-lg mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-base font-bold text-white flex items-center gap-2">策略看板 <span
+                        class="text-[8px] font-semibold bg-[#638AFF]/15 text-[#638AFF] px-1.5 py-0.5 rounded-full tracking-wider border border-[#638AFF]/25">PRO</span>
+                </h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <div id="status-indicator" class="flex items-center gap-1.5">
+                        <span class="relative flex h-1.5 w-1.5"><span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span
+                                class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span></span>
+                    </div>
+                    <span class="text-[10px] text-[#525C6F] font-mono"><span id="countdown"
+                            class="text-[#638AFF]">180</span>s</span>
+                </div>
+                <button onclick="toggleSidePanel()"
+                    class="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-[#8B95A8] hover:text-white hover:bg-white/[0.1] transition">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Card List -->
+    <main class="px-4 pt-2 pb-4 max-w-lg mx-auto">
+        <div id="coin-container" class="space-y-2.5">
+            <div class="py-16 text-center flex flex-col items-center gap-3">
+                <div class="w-5 h-5 border-2 border-[#638AFF]/20 border-t-[#638AFF] rounded-full animate-spin"></div>
+                <p class="text-[#525C6F] text-xs font-medium">正在同步行情...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Pill Menu -->
+    <nav id="pill-menu">
+        <button class="pill-btn" onclick="toggleSortMenu()" id="pill-sort-btn">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 6h18M6 12h12M9 18h6" />
+            </svg>
+            排序
+        </button>
+        <button class="pill-filter" onclick="cycleFilter()" id="pill-filter-label">全部</button>
+        <div id="pill-search">
+            <input type="text" id="searchInput" placeholder="搜尋幣種...">
+            <button onclick="toggleSearch()" class="text-[#525C6F] hover:text-white text-sm transition">&times;</button>
+        </div>
+        <button class="pill-btn" onclick="toggleSearch()" id="pill-search-btn">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4.35-4.35" />
+            </svg>
+        </button>
+    </nav>
+</body>
+<script>
+    // === STATE ===
+    const COIN_LIST = ['1INCH', 'A', 'A2Z', 'AB', 'ACH', 'ACT', 'AEVO', 'AGI', 'AI', 'ALGO', 'ALT', 'ANIME', 'APE', 'APT', 'ARPA', 'ATA', 'AWE', 'AXS', 'BABYDOGE', 'BAN', 'BEL', 'BLUR', 'BOME', 'BONK', 'C98', 'CAKE', 'CAT', 'CELR', 'CFX', 'CHR', 'CHZ', 'CKB', 'COS', 'COTI', 'CRO', 'CSPR', 'CTSI', 'CVC', 'DEGO', 'DENT', 'DGB', 'DODO', 'DOGE', 'DOGS', 'DOT', 'DUSK', 'EDU', 'ENA', 'ENJ', 'ENS', 'FET', 'FLM', 'FLOKI', 'FLR', 'FORM', 'FTT', 'FUN', 'GALA', 'GEAR', 'GMT', 'GOAT', 'GRT', 'GT', 'HBAR', 'HFT', 'HIGH', 'HIVE', 'HMSTR', 'HOOK', 'HTX', 'ICP', 'ID', 'IDEX', 'IMX', 'IO', 'IOST', 'IOTA', 'IQ', 'JASMY', 'JOE', 'KAVA', 'KDA', 'KNC', 'LAT', 'LINK', 'LRC', 'LTC', 'LUNC', 'MANA', 'MANTA', 'MAV', 'MBOX', 'MEME', 'MOG', 'NEAR', 'NEIRO', 'NFT', 'NKN', 'NOT', 'OM', 'ONE', 'OXT', 'PENGU', 'PEOPLE', 'PEPE', 'PHA', 'PI', 'PIXEL', 'PNUT', 'POL', 'POND', 'PORTAL', 'PSG', 'PYTH', 'QKC', 'RAD', 'RARE', 'RATS', 'RDNT', 'RSR', 'RUNE', 'SAND', 'SATS', 'SEI', 'SFP', 'SHIB', 'SKL', 'SOL', 'SPELL', 'STRK', 'STX', 'SUI', 'SUSHI', 'SYS', 'TFUEL', 'THETA', 'TKO', 'TLM', 'TRUMP', 'TRX', 'TURBO', 'UNI', 'VOXEL', 'VTHO', 'W', 'WAXP', 'WEN', 'WIN', 'WOO', 'XAI', 'XEC', 'XVG', 'XVS', 'YGG', 'ZBCN', 'ZIL'];
+    const PROXY_URL = 'https://cors.eu.org/';
+    let marketData = {};
+    let currentSort = 'updateTime';
+    let sortDirection = 'desc';
+    let currentFilter = 'all';
+    let editingCoin = null;
+    let selectedCoin = null;
+    let userSettings = JSON.parse(localStorage.getItem('coinSettingsV3')) || {};
+
+    const DEFAULT_BIN_ID = '69ef9d4636566621a8fa2ae7';
+    const DEFAULT_API_KEY = '$2a$10$7hoFNnd/YF8ugM4NxoifIubFXp7cDTdzZKsB8uuR2vxc0cX8cbSAC';
+    const ADMIN_USER_HASH = '7422fab7937e72abc389c718350e0f85fefe37c26800b5e4e2b97be8aeeeb0d0';
+    const ADMIN_PASS_HASH = '9c75ec65e3f939311c459b38fe6740b59ff376d7d620af6ac5aca61294a91930';
+
+    async function sha256(str) { const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('') }
+
+    let isAdmin = localStorage.getItem('isAdmin') === 'true';
+    let cloudKey = isAdmin ? DEFAULT_API_KEY : '';
+    let cloudBin = localStorage.getItem('syncBin') || DEFAULT_BIN_ID;
+
+    const SORT_OPTIONS = [
+        { key: 'updateTime', label: '更新時間', defaultDir: 'desc' },
+        { key: 'name', label: '按字母排序', defaultDir: 'asc' },
+        { key: 'change', label: '24H 漲跌幅', defaultDir: 'desc' },
+        { key: 'expectedGain', label: '預期收益 (%)', defaultDir: 'desc' },
+        { key: 'targetDist', label: '現價與目標價距離', defaultDir: 'asc' },
+        { key: 'entryDist', label: '現價與進場價距離', defaultDir: 'asc' }
+    ];
+
+    // === INIT SETTINGS ===
+    COIN_LIST.forEach(coin => {
+        if (!userSettings[coin]) userSettings[coin] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '', entrySide: null, capital: 0, leverage: 1 };
+        else {
+            if (userSettings[coin].note === undefined) userSettings[coin].note = '';
+            if (userSettings[coin].entrySide === undefined) userSettings[coin].entrySide = null;
+            if (userSettings[coin].capital === undefined) userSettings[coin].capital = 0;
+            if (userSettings[coin].leverage === undefined) userSettings[coin].leverage = 1;
+        }
+    });
+    function saveSettings() { localStorage.setItem('coinSettingsV3', JSON.stringify(userSettings)) }
+
+    // === UTILS ===
+    function formatPrice(p) { const n = Number(p); if (n === 0) return '---'; if (n < 0.0001) return n.toLocaleString('en-US', { maximumSignificantDigits: 4 }); if (n < 1) return n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+    function formatRelativeTime(ts) { if (!ts) return '未曾設定'; const diff = Date.now() - ts; if (diff < 60000) return '剛剛'; const m = Math.floor(diff / 60000); if (m < 60) return `${m} 分鐘前`; const h = Math.floor(m / 60); if (h < 24) return `${h} 小時前`; const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}` }
+    function showToast(msg, type = 'success') { const t = document.createElement('div'); t.className = `fixed bottom-28 left-1/2 -translate-x-1/2 text-xs px-4 py-2 rounded-lg shadow-lg z-[60] transition-all ${type === 'success' ? 'bg-green-600/90 text-white' : 'bg-red-600/90 text-white'}`; t.innerText = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3000) }
+
+    // === CLOUD/AUTH ===
+    function updateSyncStatus() { const s = document.getElementById('sync-status'); if (isAdmin && cloudBin) { s.className = "text-[11px] px-3 py-1.5 rounded-lg bg-green-500/15 text-green-400 font-medium mb-6 text-center"; s.innerText = "PRO 管理者模式" } else if (!isAdmin && cloudBin) { s.className = "text-[11px] px-3 py-1.5 rounded-lg bg-blue-500/15 text-blue-400 font-medium mb-6 text-center"; s.innerText = "唯讀訪客模式" } else { s.className = "text-[11px] px-3 py-1.5 rounded-lg bg-slate-800 text-slate-500 font-medium mb-6 text-center"; s.innerText = "本地端未連線" } }
+
+    async function toggleAdminLogin() {
+        if (isAdmin) { localStorage.removeItem('isAdmin'); alert("已登出管理者模式。"); location.reload() }
+        else {
+            const u = document.getElementById('admin-user').value.trim(), p = document.getElementById('admin-pass').value.trim();
+            if (await sha256(u) === ADMIN_USER_HASH && await sha256(p) === ADMIN_PASS_HASH) { localStorage.setItem('isAdmin', 'true'); alert("登入成功！"); location.reload() }
+            else alert("登入失敗：帳號或密碼錯誤！");
+        }
+    }
+    function saveSyncConfig() { const b = document.getElementById('sync-bin'); if (b) { cloudBin = b.value.trim(); localStorage.setItem('syncBin', cloudBin) } updateSyncStatus() }
+    async function guestRefresh() { const btn = document.getElementById('guest-refresh-btn'); if (btn) { btn.innerText = '...'; btn.disabled = true } saveSyncConfig(); if (!cloudBin) { alert('尚無 Bin ID！'); if (btn) { btn.innerText = '🔄'; btn.disabled = false } return } await fetchFromCloud(false); if (btn) { btn.innerText = '🔄'; btn.disabled = false } }
+    async function createCloudBin() { saveSyncConfig(); if (!cloudKey) return alert("請先登入管理員！"); try { const r = await fetch("https://api.jsonbin.io/v3/b", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey, 'X-Bin-Name': 'AltcoinVaultSync', 'X-Bin-Private': 'false' }, body: JSON.stringify(userSettings) }); const d = await r.json(); if (d.record) { cloudBin = d.metadata.id; document.getElementById('sync-bin').value = cloudBin; saveSyncConfig(); alert("✅ Bin ID: " + cloudBin) } else alert("❌ " + JSON.stringify(d)) } catch (e) { alert("❌ " + e) } }
+    async function pushToCloud(manual = false) { if (!cloudKey || !cloudBin) { if (manual) alert("請先建立區塊！"); return } const btn = document.getElementById('push-btn'); if (manual && btn) btn.innerText = "上傳中..."; try { const r = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey }, body: JSON.stringify(userSettings) }); if (r.status === 401 || r.status === 403) { alert("授權錯誤！"); toggleAdminLogin() } else if (r.ok && manual) alert("✅ 同步成功！") } catch (e) { if (manual) alert("❌ " + e.message) } if (manual && btn) btn.innerText = "強制上傳雲端 ⬆️" }
+    async function fetchFromCloud(silent = false) { if (!silent) saveSyncConfig(); if (!cloudBin) { if (!silent) showToast('請填寫 Bin ID！', 'error'); return } try { const r = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin + "/latest", { method: 'GET', headers: { 'X-Master-Key': cloudKey || DEFAULT_API_KEY } }); const d = await r.json(); if (d.record) { const c = d.record; COIN_LIST.forEach(coin => { if (c[coin]) userSettings[coin] = { entry: c[coin].entry || 0, target: c[coin].target || 0, stopLoss: c[coin].stopLoss || 0, isHolding: c[coin].isHolding || false, lastManualUpdate: c[coin].lastManualUpdate || 0, note: c[coin].note || '', entrySide: c[coin].entrySide || null, capital: c[coin].capital || 0, leverage: c[coin].leverage || 1 } }); if(c['__GLOBAL__']){ userSettings['__GLOBAL__'] = c['__GLOBAL__']; gdRealized = c['__GLOBAL__'].realizedPnL || 0; localStorage.setItem('gdRealized', gdRealized); const rEl = document.getElementById('gd-realized'); if(rEl) rEl.value = gdRealized; if(typeof gdUpdate === 'function') gdUpdate(); } saveSettings(); renderCards(); if (!silent) showToast("✅ 已讀取雲端資料！") } else { if (!silent) showToast("❌ " + (d.message || JSON.stringify(d)), 'error') } } catch (e) { if (!silent) showToast("❌ " + e.message, 'error') } }
+
+    // === AUTO ENTRY ===
+    function checkAutoEntry() { let trig = []; COIN_LIST.forEach(coin => { const s = userSettings[coin], m = marketData[coin]; if (!s || !m || s.isHolding || !s.entry || !s.entrySide) return; const p = Number(m.price), e = Number(s.entry); if (p <= 0 || e <= 0) return; let go = false; if (s.entrySide === 'breakout' && p >= e) go = true; if (s.entrySide === 'dip' && p <= e) go = true; if (go) { userSettings[coin].isHolding = true; userSettings[coin].entrySide = null; userSettings[coin].lastManualUpdate = Date.now(); trig.push(coin) } }); if (trig.length > 0) { saveSettings(); pushToCloud(false); if (!editingCoin) renderCards(); trig.forEach(c => showToast(`🚀 ${c} 已自動進場！`)) } }
+
+    // === EXPORT/IMPORT ===
+    function exportSettings() { const d = JSON.stringify(userSettings, null, 2), b = new Blob([d], { type: 'application/json' }), u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; const t = new Date(); a.download = `altcoin_vault_${t.getFullYear()}${String(t.getMonth() + 1).padStart(2, '0')}${String(t.getDate()).padStart(2, '0')}.json`; a.click(); URL.revokeObjectURL(u); showToast('✅ 備份已匯出！') }
+    function importSettings() { const i = document.createElement('input'); i.type = 'file'; i.accept = '.json'; i.onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { try { const imp = JSON.parse(ev.target.result); let c = 0; COIN_LIST.forEach(coin => { if (imp[coin]) { userSettings[coin] = Object.assign({}, userSettings[coin], imp[coin]); c++ } }); saveSettings(); renderCards(); showToast(`✅ 已匯入 ${c} 筆策略！`) } catch (err) { showToast('❌ 格式不正確', 'error') } }; r.readAsText(f) }; i.click() }
+
+    // === API ===
+    async function fetchExchangeData() { try { const [pR, gR, oR] = await Promise.all([fetch(PROXY_URL + encodeURIComponent('https://api.pionex.com/api/v1/market/tickers')), fetch(PROXY_URL + encodeURIComponent('https://api.gateio.ws/api/v4/spot/tickers')), fetch(PROXY_URL + encodeURIComponent('https://www.okx.com/api/v5/market/tickers?instType=SPOT'))]); const pD = await pR.json(), gD = await gR.json(), oD = await oR.json(); let pM = {}, gM = {}, oM = {}; if (pD.data) pD.data.tickers.forEach(t => { if (t.symbol.endsWith('_USDT')) pM[t.symbol.split('_')[0]] = { price: t.close, change: t.change !== undefined ? t.change * 100 : ((t.close - t.open) / t.open) * 100, vol: t.volume, src: 'Pionex' } }); if (Array.isArray(gD)) gD.forEach(t => { if (t.currency_pair.endsWith('_USDT')) gM[t.currency_pair.split('_')[0]] = { price: t.last, change: t.change_percentage, vol: t.base_volume, src: 'Gate' } }); if (oD.data) oD.data.forEach(t => { if (t.instId.endsWith('-USDT')) oM[t.instId.split('-')[0]] = { price: t.last, change: ((t.last - t.open24h) / t.open24h) * 100, vol: t.vol24h, src: 'OKX' } }); marketData = {}; COIN_LIST.forEach(coin => { marketData[coin] = pM[coin] || gM[coin] || oM[coin] || { price: 0, change: 0, vol: 0, src: '--' } }); if (!editingCoin) renderCards(); checkAutoEntry() } catch (e) { console.error("更新失敗:", e); document.getElementById('status-indicator').innerHTML = '<span class="text-red-500 text-[10px]">連線異常</span>' } }
+
+    // === UI FUNCTIONS ===
+    function toggleSidePanel() { document.getElementById('side-panel').classList.toggle('open'); document.getElementById('side-overlay').classList.toggle('active') }
+    function toggleSortMenu() { document.getElementById('sort-menu').classList.toggle('open'); document.getElementById('sort-overlay').classList.toggle('active') }
+    function toggleSearch() { const s = document.getElementById('pill-search'), b = document.getElementById('pill-search-btn'), f = document.getElementById('pill-filter-label'), sb = document.getElementById('pill-sort-btn'); if (s.classList.contains('active')) { s.classList.remove('active'); b.style.display = ''; f.style.display = ''; sb.style.display = ''; document.getElementById('searchInput').value = ''; renderCards() } else { s.classList.add('active'); b.style.display = 'none'; f.style.display = 'none'; sb.style.display = 'none'; document.getElementById('searchInput').focus() } }
+    function cycleFilter() { const fs = ['all', 'holding', 'watching']; const i = (fs.indexOf(currentFilter) + 1) % 3; setFilter(fs[i]) }
+    function setFilter(f) { currentFilter = f; const labels = { all: '全部', holding: '已進場', watching: '未進場' }; document.getElementById('pill-filter-label').textContent = labels[f]; document.querySelectorAll('#filter-btns button').forEach(b => { if (b.dataset.f === f) { b.className = 'flex-1 py-2 text-xs rounded-lg font-semibold transition border border-[#638AFF]/25 bg-[#638AFF]/10 text-[#638AFF]' } else { b.className = 'flex-1 py-2 text-xs rounded-lg font-semibold transition border border-white/[0.06] bg-white/[0.03] text-[#8B95A8]' } }); renderCards() }
+    function changeSort(key) { if (currentSort === key) { sortDirection = sortDirection === 'asc' ? 'desc' : 'asc' } else { currentSort = key; sortDirection = SORT_OPTIONS.find(o => o.key === key).defaultDir } renderSortOpts(); renderCards() }
+    function renderSortOpts() { const c = document.getElementById('sort-opts'); c.innerHTML = ''; SORT_OPTIONS.forEach(o => { const active = currentSort === o.key; const arrow = active ? (sortDirection === 'asc' ? '↑' : '↓') : ''; const el = document.createElement('div'); el.className = 'sort-opt' + (active ? ' active' : ''); el.onclick = () => changeSort(o.key); el.innerHTML = `<span class="text-xs font-medium">${o.label}</span><span class="text-xs font-mono">${arrow}</span>`; c.appendChild(el) }) }
+
+    // === BOTTOM SHEET ===
+    function openBottomSheet(coin) { selectedCoin = coin; editingCoin = null; renderBottomSheet(false); document.getElementById('bottom-sheet').classList.add('open'); document.getElementById('sheet-overlay').classList.add('active') }
+    function closeBottomSheet() { document.getElementById('bottom-sheet').classList.remove('open'); document.getElementById('sheet-overlay').classList.remove('active'); if (editingCoin) { editingCoin = null } selectedCoin = null }
+    function renderBottomSheet(isEdit) {
+        const coin = selectedCoin; if (!coin) return;
+        const s = userSettings[coin] || {}; const m = marketData[coin] || { price: 0, change: 0 };
+        const p = Number(m.price), entry = Number(s.entry), target = Number(s.target), sl = Number(s.stopLoss);
+        const isUp = Number(m.change) >= 0; const chgColor = isUp ? 'text-emerald-400' : 'text-red-400';
+        const expectedGain = entry > 0 && target > 0 ? ((target - entry) / entry * 100).toFixed(2) : '--';
+        const expectedLoss = entry > 0 && sl > 0 ? ((entry - sl) / entry * 100).toFixed(2) : '--';
+        const statusLabel = s.isHolding ? '已進場' : '觀望中'; const statusColor = s.isHolding ? 'text-[#638AFF]' : 'text-[#525C6F]';
+        const c = document.getElementById('sheet-content');
+        if (!isEdit) {
+            c.innerHTML = `
+        <div class="flex justify-between items-start mb-5">
+            <div><h3 class="text-lg font-bold text-white">${coin}<span class="text-[#525C6F] font-normal text-sm">/USDT</span></h3>
+            <p class="text-sm font-mono mt-1 ${chgColor}">${formatPrice(m.price)} <span class="text-xs ml-1">${isUp ? '+' : ''}${Number(m.change).toFixed(2)}%</span></p></div>
+            <span class="text-[11px] px-2.5 py-1 rounded-full font-medium border ${s.isHolding ? 'border-[#638AFF]/30 text-[#638AFF] bg-[#638AFF]/10' : 'border-white/[0.06] text-[#525C6F] bg-white/[0.03]'}">${statusLabel}</span>
+        </div>
+        <div class="bg-[#0F1219] rounded-xl p-1">
+            <div class="detail-row px-3"><span class="text-xs text-[#525C6F]">最後更新時間</span><span class="text-xs font-mono text-[#8B95A8]">${formatRelativeTime(s.lastManualUpdate)}</span></div>
+            <div class="detail-row px-3"><span class="text-xs text-[#525C6F]">觸發價 (進場價)</span><span class="text-xs font-mono text-[#8B95A8]">${entry ? formatPrice(entry) : '--'}</span></div>
+            <div class="detail-row px-3"><span class="text-xs text-[#525C6F]">目標價</span><span class="text-xs font-mono text-emerald-400">${target ? formatPrice(target) : '--'}</span></div>
+            <div class="detail-row px-3"><span class="text-xs text-[#525C6F]">預期收益 (%)</span><span class="text-xs font-mono ${expectedGain !== '--' && parseFloat(expectedGain) > 0 ? 'text-emerald-400' : 'text-[#8B95A8]'}">${expectedGain !== '--' ? '+' + expectedGain + '%' : '--'}</span></div>
+            <div class="detail-row px-3"><span class="text-xs text-[#525C6F]">停損價</span><span class="text-xs font-mono text-red-400">${sl ? formatPrice(sl) : '--'}</span></div>
+            <div class="detail-row px-3"><span class="text-xs text-[#525C6F]">預期虧損 (%)</span><span class="text-xs font-mono ${expectedLoss !== '--' ? 'text-red-400' : 'text-[#8B95A8]'}">${expectedLoss !== '--' ? '-' + expectedLoss + '%' : '--'}</span></div>
+        </div>
+        ${isAdmin ? `<button onclick="enterEditMode()" class="w-full mt-5 py-3 bg-white/[0.04] hover:bg-white/[0.08] text-[#8B95A8] hover:text-white text-xs rounded-xl font-semibold transition border border-white/[0.06]">修改計畫 ✏️</button>` : ''}`;
+        } else {
+            editingCoin = coin;
+            c.innerHTML = `
+        <h3 class="text-base font-bold text-white mb-4">${coin}/USDT <span class="text-xs text-[#525C6F] font-normal">— 編輯模式</span></h3>
+        <div class="space-y-3">
+            <div><label class="text-[10px] text-[#525C6F] uppercase block mb-1 font-semibold tracking-wide">交易狀態</label>
+            <select id="edit-holding" class="w-full text-xs p-2.5 rounded-lg"><option value="false" ${!s.isHolding ? 'selected' : ''}>觀望中 (Watching)</option><option value="true" ${s.isHolding ? 'selected' : ''}>已進場 (Holding)</option></select></div>
+            <div><label class="text-[10px] text-[#525C6F] uppercase block mb-1 font-semibold">觸發價 (進場價)</label>
+            <input type="number" id="edit-entry" value="${s.entry || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" class="w-full text-xs p-2.5 rounded-lg"></div>
+            <div><label class="text-[10px] text-emerald-500/60 uppercase block mb-1 font-semibold">目標價</label>
+            <input type="number" id="edit-target" value="${s.target || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" class="w-full text-xs p-2.5 rounded-lg"></div>
+            <div><label class="text-[10px] text-red-500/60 uppercase block mb-1 font-semibold">停損價</label>
+            <input type="number" id="edit-sl" value="${s.stopLoss || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" class="w-full text-xs p-2.5 rounded-lg"></div>
+            <div><label class="text-[10px] text-[#525C6F] uppercase block mb-1 font-semibold">備註</label>
+            <input type="text" id="edit-note" value="${s.note || ''}" maxlength="10" placeholder="可選填..." class="w-full text-xs p-2.5 rounded-lg"></div>
+            <div class="border-t border-white/5 pt-3 mt-1"><p class="text-[10px] text-purple-400/60 uppercase mb-2 font-semibold">💰 資金計算</p>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-[10px] text-[#525C6F] uppercase block mb-1 font-medium">單筆投入金額 (USDT)</label><input type="number" id="edit-capital" value="${s.capital || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" class="w-full text-xs p-2.5 rounded-lg"></div>
+                <div><label class="text-[10px] text-[#525C6F] uppercase block mb-1 font-medium">槓桿 (x)</label><input type="number" id="edit-leverage" value="${s.leverage || 1}" min="1" max="100" class="w-full text-xs p-2.5 rounded-lg"></div>
+            </div>
+            ${(()=>{ let sumCapital=0; COIN_LIST.forEach(c=>{if(userSettings[c]&&userSettings[c].capital) sumCapital+=Number(userSettings[c].capital);}); const sug = sumCapital>0?(sumCapital*0.05).toFixed(2):null; return sug&&!s.capital?`<p style="font-size:9px;color:rgba(167,139,250,.5);margin-top:4px">💡 建議投入清單本金 5%：<button onclick="document.getElementById('edit-capital').value='${sug}'" style="color:#638AFF;background:none;border:none;cursor:pointer;font-size:9px;font-weight:700;padding:0">套用 \$${sug}</button></p>`:''; })()}
+            </div>
+        </div>
+        <button onclick="saveEdit()" class="w-full mt-5 py-3 bg-[#638AFF] hover:bg-[#7B9FFF] text-white text-sm rounded-xl font-semibold transition">儲存計畫</button>`;
+        }
+    }
+    function enterEditMode() { renderBottomSheet(true) }
+    function saveEdit() {
+        const coin = selectedCoin; if (!coin) return;
+        const newEntry = parseFloat(document.getElementById('edit-entry').value) || 0;
+        const newHolding = document.getElementById('edit-holding').value === 'true';
+        userSettings[coin].entry = newEntry;
+        userSettings[coin].target = parseFloat(document.getElementById('edit-target').value) || 0;
+        userSettings[coin].stopLoss = parseFloat(document.getElementById('edit-sl').value) || 0;
+        userSettings[coin].isHolding = newHolding;
+        userSettings[coin].note = document.getElementById('edit-note').value || '';
+        userSettings[coin].capital = parseFloat(document.getElementById('edit-capital').value) || 0;
+        userSettings[coin].leverage = parseFloat(document.getElementById('edit-leverage').value) || 1;
+        userSettings[coin].lastManualUpdate = Date.now();
+        if (!newHolding && newEntry > 0) { const cp = Number((marketData[coin] || {}).price || 0); if (cp > 0 && cp < newEntry) userSettings[coin].entrySide = 'breakout'; else if (cp > 0 && cp > newEntry) userSettings[coin].entrySide = 'dip'; else userSettings[coin].entrySide = null } else { userSettings[coin].entrySide = null }
+        editingCoin = null; saveSettings(); closeBottomSheet(); renderCards();
+        const ind = document.getElementById('sync-status'); const ot = ind.innerText; const oc = ind.className;
+        ind.className = "text-[11px] px-3 py-1.5 rounded-lg bg-yellow-500/15 text-yellow-500 font-medium mb-6 text-center"; ind.innerText = "上傳中...";
+        pushToCloud(false).then(() => { ind.className = oc; ind.innerText = ot });
+    }
+
+    // === RENDER CARDS ===
+    function getSortValue(coin) {
+        const m = marketData[coin] || { price: 0, change: 0 }; const s = userSettings[coin] || {};
+        const p = Number(m.price), e = Number(s.entry), t = Number(s.target);
+        switch (currentSort) {
+            case 'name': return coin;
+            case 'change': return Number(m.change) || 0;
+            case 'updateTime': return s.lastManualUpdate || 0;
+            case 'expectedGain': return (e > 0 && t > 0) ? ((t - e) / e * 100) : -9999;
+            case 'targetDist': return (t > 0 && p > 0) ? ((t - p) / p * 100) : 9999;
+            case 'entryDist': return (e > 0 && p > 0) ? (Math.abs(p - e) / e * 100) : 9999;
+            default: return 0;
+        }
+    }
+    function renderCards() {
+        const container = document.getElementById('coin-container');
+        const searchVal = (document.getElementById('searchInput').value || '').toUpperCase();
+        let list = COIN_LIST.filter(c => c.includes(searchVal));
+        // Filter
+        if (currentFilter === 'holding') list = list.filter(c => (userSettings[c] || {}).isHolding);
+        if (currentFilter === 'watching') list = list.filter(c => !(userSettings[c] || {}).isHolding);
+        // Sort
+        list.sort((a, b) => {
+            const va = getSortValue(a), vb = getSortValue(b);
+            if (currentSort === 'name') { return sortDirection === 'asc' ? a.localeCompare(b) : b.localeCompare(a) }
+            const diff = sortDirection === 'asc' ? va - vb : vb - va;
+            return diff;
+        });
+        container.innerHTML = '';
+        if (list.length === 0) { container.innerHTML = '<div class="py-16 text-center text-[#525C6F] text-xs">沒有符合條件的幣種</div>'; return }
+        list.forEach((coin, i) => {
+            const m = marketData[coin] || { price: 0, change: 0, vol: 0, src: '--' };
+            const s = userSettings[coin] || {};
+            const isUp = Number(m.change) >= 0;
+            const chgColor = isUp ? 'text-emerald-400' : 'text-red-400';
+            const targetHit = s.isHolding && s.target > 0 && Number(m.price) >= Number(s.target);
+            const card = document.createElement('div');
+            let cls = 'coin-card group';
+            if (s.isHolding) cls += ' holding';
+            if (targetHit) cls += ' target-hit';
+            card.className = cls;
+            card.style.animationDelay = `${Math.min(i * 30, 300)}ms`;
+            card.onclick = () => openBottomSheet(coin);
+
+            const curPrice = Number(m.price);
+            const entryPrice = Number(s.entry);
+            const targetPrice = Number(s.target);
+
+            let pnlHtml = '';
+            if (s.isHolding && entryPrice > 0 && curPrice > 0) {
+                const pnlPct = ((curPrice - entryPrice) / entryPrice * 100 * (s.leverage || 1));
+                const pnlColor = pnlPct >= 0 ? 'text-emerald-400' : 'text-red-400';
+                const pnlAbs = s.capital > 0 ? (s.capital * pnlPct / 100).toFixed(2) : null;
+                pnlHtml = `<div class="text-right flex flex-col items-end">
+                <span class="text-[9px] text-[#525C6F] font-bold uppercase tracking-tight">倉位盈虧 (估)</span>
+                <span class="${pnlColor} font-mono text-[13px] font-bold">${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}% ${pnlAbs ? `<span class="text-[10px] ml-0.5 opacity-80">($${pnlAbs})</span>` : ''}</span>
+            </div>`;
             }
-            if(cloudBin && !isAdmin && Object.keys(userSettings).every(k => !userSettings[k].target && !userSettings[k].entry)) {
-                // 訪客模式，如果預設有 Bin ID 且目前沒有任何設定資料，自動偷偷下載一次資料
-                fetchFromCloud(true);
-            }
-        }, 100);
 
-        function toggleAdminLogin() {
-            if(isAdmin) {
-                localStorage.removeItem('isAdmin');
-                alert("已登出管理者模式，轉換為訪客觀看狀態。");
-                location.reload();
-            } else {
-                const user = document.getElementById('admin-user').value.trim();
-                const pass = document.getElementById('admin-pass').value.trim();
-                if(user === ADMIN_USER && pass === ADMIN_PASS) {
-                    localStorage.setItem('isAdmin', 'true');
-                    alert("登入成功！已切換至 PRO 管理者模式。");
-                    location.reload();
+            let distHtml = '';
+            if (curPrice > 0) {
+                const goalPrice = s.isHolding ? targetPrice : entryPrice;
+                const distLabel = s.isHolding ? '距目標' : '距觸發';
+                if (goalPrice > 0) {
+                    const distPct = Math.abs(goalPrice - curPrice) / curPrice * 100;
+                    distHtml = `<div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-[#525C6F] font-medium">${distLabel}:</span>
+                    <span class="text-[11px] font-mono font-bold text-white/90">${distPct.toFixed(2)}%</span>
+                </div>`;
                 } else {
-                    alert("登入失敗：帳號或密碼錯誤！");
+                    distHtml = `<div class="flex items-center gap-1.5 opacity-30"><span class="text-[10px] text-[#525C6F]">無標價</span></div>`;
                 }
             }
-        }
 
-        function updateSyncStatus() {
-            const statusBadge = document.getElementById('sync-status');
-            if(isAdmin && cloudBin) {
-                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-green-500/20 text-green-400";
-                statusBadge.innerText = "PRO 管理者模式";
-            } else if (!isAdmin && cloudBin) {
-                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-blue-500/20 text-blue-400";
-                statusBadge.innerText = "唯讀訪客模式";
-            } else {
-                statusBadge.className = "text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-500";
-                statusBadge.innerText = "本地端未連線";
-            }
-        }
+            card.innerHTML = `
+            <div class="flex flex-col gap-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-white text-[16px]">${coin}</span>
+                        ${s.isHolding ? `<span class="text-[9px] px-1.5 py-0.5 bg-[#638AFF]/15 text-[#638AFF] rounded-md border border-[#638AFF]/30 font-bold tracking-tight">HOLDING</span>` : ''}
+                    </div>
+                    <span class="${chgColor} text-[13px] font-bold font-mono bg-white/[0.03] px-2 py-0.5 rounded-md border border-white/[0.04]">${isUp ? '+' : ''}${Number(m.change).toFixed(2)}%</span>
+                </div>
 
-        function showToast(msg, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `fixed bottom-6 left-1/2 -translate-x-1/2 text-xs px-4 py-2 rounded-lg shadow-lg z-50 transition-all ${ type === 'success' ? 'bg-green-600/90 text-white' : 'bg-red-600/90 text-white' }`;
-            toast.innerText = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
+                <div class="flex items-end justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] text-[#525C6F] font-bold uppercase tracking-tight">現價</span>
+                        <span class="text-white font-mono text-[16px] font-semibold leading-tight">${formatPrice(m.price)}</span>
+                    </div>
+                    ${pnlHtml}
+                </div>
 
-        function saveSyncConfig() {
-            const binInput = document.getElementById('sync-bin');
-            if (binInput) {
-                cloudBin = binInput.value.trim();
-                localStorage.setItem('syncBin', cloudBin);
-            }
-            updateSyncStatus();
-        }
+                <div class="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+                    ${distHtml}
+                    <span class="text-[9px] text-[#525C6F] font-mono font-medium">${formatRelativeTime(s.lastManualUpdate)}</span>
+                </div>
 
-        async function guestRefresh() {
-            const btn = document.getElementById('guest-refresh-btn');
-            if (btn) { btn.innerText = '讀取中...'; btn.disabled = true; }
-            saveSyncConfig();
-            if (!cloudBin) {
-                alert('尚無預設 Bin ID，請聯繫管理員！');
-                if (btn) { btn.innerText = '重新讀取 🔄'; btn.disabled = false; }
-                return;
-            }
-            await fetchFromCloud(false);
-            if (btn) { btn.innerText = '重新讀取 🔄'; btn.disabled = false; }
-        }
+                <div class="optional-detail">
+                    <div class="flex flex-wrap items-center justify-between gap-1">
+                         ${s.note ? `<span class="text-[10px] text-amber-400 font-medium italic truncate max-w-[120px]">"${s.note}"</span>` : '<span class="text-[10px] text-[#525C6F]">無備註</span>'}
+                         <div class="flex gap-3">
+                            <span class="text-[10px] text-[#525C6F]">T: <span class="text-[#8B95A8]">${s.target || '--'}</span></span>
+                            <span class="text-[10px] text-[#525C6F]">E: <span class="text-[#8B95A8]">${s.entry || '--'}</span></span>
+                         </div>
+                    </div>
+                </div>
+            </div>`;
+            container.appendChild(card);
+        });
+    }
 
-        async function createCloudBin() {
-            saveSyncConfig();
-            if(!cloudKey) return alert("請先填寫 Master Key！");
-            try {
-                const res = await fetch("https://api.jsonbin.io/v3/b", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey, 'X-Bin-Name': 'AltcoinVaultSync', 'X-Bin-Private': 'false' },
-                    body: JSON.stringify(userSettings)
-                });
-                const data = await res.json();
-                if(data.record) {
-                    cloudBin = data.metadata.id;
-                    document.getElementById('sync-bin').value = cloudBin;
-                    saveSyncConfig();
-                    alert("✅ 成功建立公開雲端區塊！\n\n您的 Bin ID 是: " + cloudBin + "\n\n1. 請將程式碼約第112行的 DEFAULT_BIN_ID 替換成這組代碼！\n2. 這樣別人就不需要密碼也能觀看了！");
-                } else {
-                    alert("❌ 建立失敗：" + JSON.stringify(data));
-                }
-            } catch(e) { alert("❌ 網路請求錯誤：" + e); }
-        }
+    // === GLOBAL DASHBOARD ===
+    let gdOpen = localStorage.getItem('gdOpen') === 'true';
+    let gdRealized = parseFloat(localStorage.getItem('gdRealized')) || 0;
+    if (userSettings['__GLOBAL__'] && userSettings['__GLOBAL__'].realizedPnL !== undefined) {
+        gdRealized = userSettings['__GLOBAL__'].realizedPnL;
+        localStorage.setItem('gdRealized', gdRealized);
+    }
 
-        async function pushToCloud(isManual = false) {
-            if(!cloudKey || !cloudBin) {
-                if(isManual) alert("請先建立公開區塊或填寫 Bin ID！");
-                return;
-            }
-            
-            const pushBtn = document.getElementById('push-btn');
-            if (isManual && pushBtn) pushBtn.innerText = "上傳中...";
+    function toggleGD() {
+        gdOpen = !gdOpen;
+        localStorage.setItem('gdOpen', gdOpen);
+        document.getElementById('gd').classList.toggle('open', gdOpen);
+        document.getElementById('gd-chevron').style.transform = gdOpen ? 'rotate(180deg)' : '';
+    }
 
-            try {
-                const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey },
-                    body: JSON.stringify(userSettings)
-                });
-                if(res.status === 401 || res.status === 403) {
-                    alert("更新失敗：授權碼 (Master Key) 錯誤或無權限！已登出。");
-                    toggleAdminLogin();
-                } else if (res.ok && isManual) {
-                    alert("✅ 成功同步至雲端最新狀態！");
-                }
-            } catch(e) { 
-                console.error("Cloud Error", e); 
-                if (isManual) alert("❌ 上傳失敗: " + e.message);
-            }
-
-            if (isManual && pushBtn) pushBtn.innerText = "強制上傳/覆蓋雲端 ⬆️";
-        }
-
-        async function fetchFromCloud(silent = false) {
-            if(!silent) saveSyncConfig();
-            if(!cloudBin) {
-                if(!silent) showToast('請先填寫 Bin ID！', 'error');
-                return;
-            }
-            
-            try {
-                // 讀取時永遠帶 key：訪客用預設 key（已寫死在程式碼中），管理員用自己的 key
-                // 這樣私有 Bin 也能讀取，但沒有 Master Key 依然無法寫入
-                const readKey = cloudKey || DEFAULT_API_KEY;
-                const headers = { 'X-Master-Key': readKey };
-
-                const res = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin + "/latest", {
-                    method: 'GET',
-                    headers: headers
-                });
-                const data = await res.json();
-                if(data.record) {
-                    // 將雲端資料寫入 userSettings
-                    const cloudData = data.record;
-                    // 確保所有契種字段完整
-                    COIN_LIST.forEach(coin => {
-                        if (cloudData[coin]) {
-                            userSettings[coin] = {
-                                entry: cloudData[coin].entry || 0,
-                                target: cloudData[coin].target || 0,
-                                stopLoss: cloudData[coin].stopLoss || 0,
-                                isHolding: cloudData[coin].isHolding || false,
-                                lastManualUpdate: cloudData[coin].lastManualUpdate || 0,
-                                note: cloudData[coin].note || '',
-                                entrySide: cloudData[coin].entrySide || null,
-                                capital: cloudData[coin].capital || 0,
-                                leverage: cloudData[coin].leverage || 1
-                            };
-                        }
-                    });
-                    saveSettings();
-                    renderCards();
-                    if(!silent) showToast("✅ 已從雲端讀取最新資料！");
-                } else {
-                    if(!silent) showToast("❌ 讀取失敗: " + (data.message || JSON.stringify(data)), 'error');
-                }
-            } catch(e) { 
-                if(!silent) showToast("❌ 網路錯誤: " + e.message, 'error');
-            }
-        }
-
-        // 初始化設定
+    function gdGetFloatPnl() {
+        let tot = 0;
         COIN_LIST.forEach(coin => {
-            if (!userSettings[coin]) {
-                userSettings[coin] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '', entrySide: null, capital: 0, leverage: 1 };
-            } else {
-                if (userSettings[coin].note === undefined) userSettings[coin].note = '';
-                if (userSettings[coin].entrySide === undefined) userSettings[coin].entrySide = null;
-                if (userSettings[coin].capital === undefined) userSettings[coin].capital = 0;
-                if (userSettings[coin].leverage === undefined) userSettings[coin].leverage = 1;
+            const s = userSettings[coin], m = marketData[coin];
+            if (!s || !m || !s.isHolding || !s.capital || !s.entry) return;
+            const p = Number(m.price), e = Number(s.entry), cap = Number(s.capital), lev = Number(s.leverage || 1);
+            if (p > 0 && e > 0) tot += cap * ((p - e) / e) * lev;
+        });
+        return tot;
+    }
+
+    function gdCalcProgress() {
+        let sumCapital = 0;
+        let sumTargetProfit = 0;
+        COIN_LIST.forEach(coin => {
+            const s = userSettings[coin];
+            if (!s || !s.capital) return;
+            const cap = Number(s.capital);
+            sumCapital += cap;
+
+            const e = Number(s.entry), t = Number(s.target);
+            const lev = Number(s.leverage || 1);
+            if (e > 0 && t > 0) {
+                sumTargetProfit += cap * lev * ((t - e) / e);
             }
         });
+        return { sumCapital, sumTargetProfit };
+    }
 
-        function saveSettings() {
-            localStorage.setItem('coinSettingsV3', JSON.stringify(userSettings));
+    function gdSaveLocal() {
+        gdRealized = parseFloat(document.getElementById('gd-realized').value) || 0;
+        localStorage.setItem('gdRealized', gdRealized);
+        gdUpdate();
+    }
+
+    function gdSaveCloud() {
+        gdSaveLocal();
+        userSettings['__GLOBAL__'] = { realizedPnL: gdRealized };
+        saveSettings();
+        pushToCloud(false);
+    }
+
+    function gdUpdate() {
+        const floatPnl = gdGetFloatPnl();
+        const totalProfit = gdRealized + floatPnl;
+        const { sumCapital, sumTargetProfit } = gdCalcProgress();
+
+        const pDisp = document.getElementById('gd-principal-disp');
+        if (pDisp) { pDisp.textContent = sumCapital.toFixed(2) + ' U'; pDisp.style.color = 'var(--text-primary)'; }
+        
+        const tDisp = document.getElementById('gd-target-profit-disp');
+        if (tDisp) { tDisp.textContent = sumTargetProfit.toFixed(2) + ' U'; tDisp.style.color = 'var(--green)'; }
+
+        // Float PnL
+        const fEl = document.getElementById('gd-float');
+        if (fEl) { fEl.textContent = (floatPnl >= 0 ? '+' : '') + floatPnl.toFixed(2) + ' U'; fEl.style.color = floatPnl >= 0 ? 'var(--green)' : 'var(--red)'; }
+
+        // Total profit
+        const tpEl = document.getElementById('gd-total-profit');
+        if (tpEl) { tpEl.textContent = (totalProfit >= 0 ? '+' : '') + totalProfit.toFixed(2) + ' USDT'; tpEl.style.color = totalProfit >= 0 ? 'var(--accent)' : 'var(--red)'; }
+
+        // Pill
+        const pill = document.getElementById('gd-pill');
+        if (pill) {
+            if (sumCapital > 0) {
+                const p2 = totalProfit / sumCapital * 100;
+                pill.textContent = (p2 >= 0 ? '+' : '') + p2.toFixed(1) + '%';
+                pill.style.color = p2 >= 0 ? 'var(--green)' : 'var(--red)';
+            } else { pill.textContent = ''; }
         }
 
-        // ── 自動進場偵測 ──────────────────────────────────────────
-        function checkAutoEntry() {
-            let triggered = [];
-            COIN_LIST.forEach(coin => {
-                const set = userSettings[coin];
-                const mkt = marketData[coin];
-                if (!set || !mkt || set.isHolding || !set.entry || !set.entrySide) return;
-                const price = Number(mkt.price);
-                const entry = Number(set.entry);
-                if (price <= 0 || entry <= 0) return;
-
-                let shouldEnter = false;
-                if (set.entrySide === 'breakout' && price >= entry) shouldEnter = true;
-                if (set.entrySide === 'dip'      && price <= entry) shouldEnter = true;
-
-                if (shouldEnter) {
-                    userSettings[coin].isHolding = true;
-                    userSettings[coin].entrySide = null;
-                    userSettings[coin].lastManualUpdate = Date.now();
-                    triggered.push(coin);
-                }
-            });
-            if (triggered.length > 0) {
-                saveSettings();
-                pushToCloud(false);
-                if (!editingCoin) { renderCards(); }
-                triggered.forEach(c => showToast(`🚀 ${c} 已自動切換為進場！`, 'success'));
-            }
+        // overall progress %
+        let overallPct = 0;
+        if (sumTargetProfit > 0) {
+            overallPct = Math.max(0, Math.min(100, totalProfit / sumTargetProfit * 100));
         }
+        
+        const barAPct = overallPct;
+        const aFill = document.getElementById('gd-bar-a-fill');
+        const aDot  = document.getElementById('gd-bar-a-dot');
+        const aPctLbl = document.getElementById('gd-bar-a-pct');
+        const aMidLbl = document.getElementById('gd-bar-a-mid');
+        if (aFill) aFill.style.width = barAPct + '%';
+        if (aDot)  aDot.style.left   = barAPct + '%';
+        if (aPctLbl) { aPctLbl.textContent = barAPct.toFixed(1) + '%'; aPctLbl.style.color = barAPct >= 50 ? 'var(--green)' : 'var(--amber)'; }
+        if (aMidLbl) aMidLbl.textContent = barAPct.toFixed(1) + '%';
 
-        // ── 匯出 / 匯入備份 ───────────────────────────────────────
-        function exportSettings() {
-            const data = JSON.stringify(userSettings, null, 2);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href = url;
-            const d = new Date();
-            a.download = `altcoin_vault_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
-            showToast('✅ 策略備份已匯出！');
+        const barBPct = barAPct;
+        const bFill = document.getElementById('gd-bar-b-fill');
+        const bDot  = document.getElementById('gd-bar-b-dot');
+        const bLbl  = document.getElementById('gd-bar-b-lbl');
+        const bRight= document.getElementById('gd-bar-b-right');
+        const bL    = document.getElementById('gd-bar-b-l');
+        const bM    = document.getElementById('gd-bar-b-m');
+        const bR    = document.getElementById('gd-bar-b-r');
+        if (bFill) bFill.style.width = barBPct + '%';
+        if (bDot)  bDot.style.left   = barBPct + '%';
+        const curU  = totalProfit;
+        const tgtU  = sumTargetProfit;
+        if (bL) bL.textContent = sumCapital > 0 ? '$' + sumCapital.toLocaleString() : '$0';
+        if (bM) { bM.textContent = (curU >= 0 ? '+$' : '-$') + Math.abs(curU).toFixed(0); bM.style.color = curU >= 0 ? 'var(--green)' : 'var(--red)'; }
+        if (bR) bR.textContent = tgtU > 0 ? '+$' + tgtU.toFixed(0) : '--';
+        if (bLbl) { bLbl.textContent = (curU >= 0 ? '+$' : '-$') + Math.abs(curU).toFixed(2); bLbl.style.color = curU >= 0 ? 'var(--green)' : 'var(--red)'; }
+        if (bRight) bRight.textContent = tgtU > 0 ? '目標 +$' + tgtU.toFixed(0) : '(未設目標)';
+    }
+
+    function gdInit() {
+        const rEl = document.getElementById('gd-realized');
+        if (rEl) rEl.value = gdRealized || '';
+        document.getElementById('gd').classList.toggle('open', gdOpen);
+        document.getElementById('gd-chevron').style.transform = gdOpen ? 'rotate(180deg)' : '';
+        gdUpdate();
+    }
+
+    // === INIT ===
+    document.getElementById('searchInput').addEventListener('input', renderCards);
+    renderSortOpts();
+
+    setTimeout(() => {
+        document.getElementById('sync-bin').value = cloudBin;
+        updateSyncStatus();
+        if (isAdmin) {
+            document.getElementById('admin-user').value = '●●●●●●●●';
+            document.getElementById('admin-pass').value = '********';
+            document.getElementById('admin-user').disabled = true;
+            document.getElementById('admin-pass').disabled = true;
+            document.getElementById('admin-tools').classList.remove('hidden');
+            document.getElementById('login-btn').innerText = '登出';
+            document.getElementById('login-btn').className = 'w-full py-2.5 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-xs hover:bg-red-600/30 transition font-semibold';
         }
+        if (cloudBin && !isAdmin && Object.keys(userSettings).every(k => !userSettings[k].target && !userSettings[k].entry)) { fetchFromCloud(true) }
+        gdInit();
+    }, 100);
 
-        function importSettings() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.json';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    try {
-                        const imported = JSON.parse(ev.target.result);
-                        let count = 0;
-                        COIN_LIST.forEach(coin => {
-                            if (imported[coin]) {
-                                userSettings[coin] = Object.assign({}, userSettings[coin], imported[coin]);
-                                count++;
-                            }
-                        });
-                        saveSettings();
-                        renderCards();
-                        showToast(`✅ 已匯入 ${count} 筆策略！`);
-                    } catch(err) {
-                        showToast('❌ 匯入失敗：格式不正確', 'error');
-                    }
-                };
-                reader.readAsText(file);
-            };
-            input.click();
-        }
+    let countdown = 180;
+    setInterval(() => {
+        countdown--;
+        const cd = document.getElementById('countdown');
+        if (editingCoin) { cd.innerHTML = `<span style="color:#fbbf24">⏸ ${countdown}</span>` } else { cd.style.color = ''; cd.textContent = countdown; }
+        if (countdown <= 0) { countdown = 180; fetchExchangeData(); }
+        gdUpdate();
+    }, 1000);
+    fetchExchangeData();
 
-        async function fetchExchangeData() {
-            try {
-                const [pRes, gRes, oRes] = await Promise.all([
-                    fetch(PROXY_URL + encodeURIComponent('https://api.pionex.com/api/v1/market/tickers')),
-                    fetch(PROXY_URL + encodeURIComponent('https://api.gateio.ws/api/v4/spot/tickers')),
-                    fetch(PROXY_URL + encodeURIComponent('https://www.okx.com/api/v5/market/tickers?instType=SPOT'))
-                ]);
-                
-                const pData = await pRes.json();
-                const gData = await gRes.json();
-                const oData = await oRes.json();
-
-                let pMap = {}, gMap = {}, oMap = {};
-                if(pData.data) pData.data.tickers.forEach(t => { if(t.symbol.endsWith('_USDT')) pMap[t.symbol.split('_')[0]] = { price: t.close, change: t.change !== undefined ? t.change*100 : ((t.close - t.open) / t.open) * 100, vol: t.volume, src: 'Pionex' } });
-                if(Array.isArray(gData)) gData.forEach(t => { if(t.currency_pair.endsWith('_USDT')) gMap[t.currency_pair.split('_')[0]] = { price: t.last, change: t.change_percentage, vol: t.base_volume, src: 'Gate' } });
-                if(oData.data) oData.data.forEach(t => { if(t.instId.endsWith('-USDT')) oMap[t.instId.split('-')[0]] = { price: t.last, change: ((t.last-t.open24h)/t.open24h)*100, vol: t.vol24h, src: 'OKX' } });
-
-                marketData = {};
-                COIN_LIST.forEach(coin => {
-                    marketData[coin] = pMap[coin] || gMap[coin] || oMap[coin] || { price: 0, change: 0, vol: 0, src: '--' };
-                });
-                if (!editingCoin) { renderCards(); }
-                checkAutoEntry();
-            } catch (e) {
-                console.error("更新失敗:", e);
-                document.getElementById('status-indicator').innerHTML = '<span class="text-red-500">網路連線異常</span>';
-            }
-        }
-
-        function changeSort(type) {
-            currentSort = type;
-            document.querySelectorAll('.sort-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
-                btn.classList.add('bg-slate-800', 'text-slate-400', 'border-slate-700');
-            });
-            document.getElementById(`sort-${type}`).classList.add('bg-blue-600/20', 'text-blue-400', 'border-blue-500/40');
-            renderCards();
-        }
-
-        function toggleEdit(coin) {
-            const displayDiv = document.getElementById(`display-${coin}`);
-            const editDiv = document.getElementById(`edit-${coin}`);
-            if (editDiv.classList.contains('hidden')) {
-                displayDiv.classList.add('hidden');
-                editDiv.classList.remove('hidden');
-                editingCoin = coin; // 標記目前編輯中的幣種
-            } else {
-                const newEntry     = parseFloat(document.getElementById(`entry-${coin}`).value) || 0;
-                const newIsHolding = document.getElementById(`holding-${coin}`).value === 'true';
-
-                userSettings[coin].entry    = newEntry;
-                userSettings[coin].target   = parseFloat(document.getElementById(`target-${coin}`).value) || 0;
-                userSettings[coin].stopLoss = parseFloat(document.getElementById(`sl-${coin}`).value) || 0;
-                userSettings[coin].isHolding = newIsHolding;
-                userSettings[coin].note = document.getElementById(`note-${coin}`) ? document.getElementById(`note-${coin}`).value : '';
-                userSettings[coin].capital  = parseFloat(document.getElementById(`capital-${coin}`).value) || 0;
-                userSettings[coin].leverage = parseFloat(document.getElementById(`leverage-${coin}`).value) || 1;
-                userSettings[coin].lastManualUpdate = Date.now();
-
-                // ── 定向觸及判斷：儲存時自動標記方向 ──
-                if (!newIsHolding && newEntry > 0) {
-                    const currentPrice = Number((marketData[coin] || {}).price || 0);
-                    if (currentPrice > 0 && currentPrice < newEntry) {
-                        userSettings[coin].entrySide = 'breakout'; // 現價低於進場價 → 等待向上突破
-                    } else if (currentPrice > 0 && currentPrice > newEntry) {
-                        userSettings[coin].entrySide = 'dip';      // 現價高於進場價 → 等待回測接刀
-                    } else {
-                        userSettings[coin].entrySide = null;       // 價格相同，不自動偵測
-                    }
-                } else {
-                    userSettings[coin].entrySide = null; // 手動設為持倉 or 未設進場價 → 關閉自動偵測
-                }
-
-                editingCoin = null; // 清除編輯結束的旗標
-                saveSettings();
-                renderCards();
-
-                const indicator = document.getElementById('sync-status');
-                const oldText = indicator.innerText;
-                const oldClass = indicator.className;
-                indicator.className = "text-[10px] px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-500";
-                indicator.innerText = "正在上傳雲端...";
-                pushToCloud(false).then(() => {
-                    indicator.className = oldClass;
-                    indicator.innerText = oldText;
-                });
-            }
-        }
-
-        function formatPrice(p) {
-            const num = Number(p);
-            if(num === 0) return '---';
-            if(num < 0.0001) return num.toLocaleString('en-US', { maximumSignificantDigits: 4 });
-            if(num < 1) return num.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function formatRelativeTime(ts) {
-            if(!ts) return '未曾設定';
-            const diff = Date.now() - ts;
-            if(diff < 60000) return '剛剛';
-            const mins = Math.floor(diff/60000);
-            if(mins < 60) return `${mins} 分鐘前`;
-            const hours = Math.floor(mins/60);
-            if(hours < 24) return `${hours} 小時前`;
-            const date = new Date(ts);
-            return `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${date.getMinutes().toString().padStart(2,'0')}`;
-        }
-
-        // 狀態徽章 helper
-        function getStatusBadge(set) {
-            if (set.isHolding)
-                return '<span class="text-[10px] px-2 py-1 rounded border border-blue-500/50 text-blue-400 bg-blue-500/5">● 持倉中</span>';
-            if (set.entrySide === 'breakout')
-                return '<span class="text-[10px] px-2 py-1 rounded border border-amber-500/50 text-amber-400 bg-amber-500/10">⬆ 等待突破</span>';
-            if (set.entrySide === 'dip')
-                return '<span class="text-[10px] px-2 py-1 rounded border border-cyan-500/50 text-cyan-400 bg-cyan-500/10">⬇ 等待接刀</span>';
-            return '<span class="text-[10px] px-2 py-1 rounded border border-slate-700 text-slate-500">○ 觀望中</span>';
-        }
-
-        function renderCards() {
-            const container = document.getElementById('coin-container');
-            const searchVal = document.getElementById('searchInput').value.toUpperCase();
-
-            let sortedList = COIN_LIST.filter(c => c.includes(searchVal)).sort((a, b) => {
-                const mktA = marketData[a], mktB = marketData[b];
-                const setA = userSettings[a], setB = userSettings[b];
-                if (currentSort === 'name') return a.localeCompare(b);
-                if (currentSort === 'change') return mktB.change - mktA.change;
-                if (currentSort === 'updateTime') return setB.lastManualUpdate - setA.lastManualUpdate;
-                if (currentSort === 'targetDist') {
-                    const getDist = (m, s) => (s.target > 0 && m.price > 0) ? (s.target - m.price) / m.price : 9999;
-                    return getDist(mktA, setA) - getDist(mktB, setB);
-                }
-            });
-
-            container.innerHTML = '';
-            sortedList.forEach(coin => {
-                // 防魔：如果市場資料尚未載入就跳過，避免崩潰
-                const mkt = marketData[coin] || { price: 0, change: 0, vol: 0, src: '--' };
-                const set = userSettings[coin] || { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '' };
-                const isUp = Number(mkt.change) >= 0;
-                const priceColor = isUp ? 'text-green-400' : 'text-red-400';
-                
-                let distanceText = '';
-                if(mkt.price > 0) {
-                    const price = Number(mkt.price);
-                    const entry = Number(set.entry);
-                    if(set.isHolding) {
-                        let leftPart = '', rightPart = '';
-                        if (entry > 0) {
-                            const ed = ((price - entry) / entry * 100);
-                            const edSign = ed >= 0 ? '+' : '';
-                            const edColor = ed >= 0 ? 'text-green-400' : 'text-red-400';
-                            leftPart = `<span class="flex items-center gap-1"><span class="text-slate-500">距進場:</span><span class="${edColor} font-mono">${edSign}${ed.toFixed(2)}%</span></span>`;
-                        }
-                        if (set.target > 0) {
-                            const d = ((set.target - price) / price * 100).toFixed(2);
-                            rightPart = `<span class="flex items-center gap-1"><span class="text-slate-500">距目標:</span><span class="${d <= 0 ? 'text-green-400 font-bold' : 'text-blue-400'} font-mono">${d}%</span></span>`;
-                        }
-                        if (leftPart || rightPart) {
-                            distanceText = `<div class="mt-3 flex justify-between text-xs">${leftPart}${rightPart}</div>`;
-                        }
-                    } else if (!set.isHolding && entry > 0) {
-                        if (set.entrySide === 'breakout') {
-                            const gap = ((entry - price) / entry * 100).toFixed(2);
-                            distanceText = `<div class="mt-3 flex justify-between text-xs"><span class="text-slate-500">距突破進場:</span><span class="text-amber-400">+${gap}%</span></div>`;
-                        } else if (set.entrySide === 'dip') {
-                            const gap = ((price - entry) / entry * 100).toFixed(2);
-                            distanceText = `<div class="mt-3 flex justify-between text-xs"><span class="text-slate-500">距接刀進場:</span><span class="text-cyan-400">-${gap}%</span></div>`;
-                        } else {
-                            const dValue = ((entry - price) / entry * 100);
-                            if (dValue < 0) {
-                                distanceText = `<div class="mt-3 text-center py-2 text-xs font-bold text-red-400 bg-red-900/20 rounded border border-red-500/20">似乎錯過了</div>`;
-                            } else {
-                                distanceText = `<div class="mt-3 text-center py-1 text-xs text-slate-500 bg-slate-800/40 rounded">與計畫進場價落差: +${dValue.toFixed(2)}%</div>`;
-                            }
-                        }
-                    }
-                }
-
-                // ── 即時盈虧計算 ──
-                let pnlText = '';
-                if (set.isHolding && set.capital > 0 && Number(set.entry) > 0 && Number(mkt.price) > 0) {
-                    const p = Number(mkt.price), e = Number(set.entry), lev = Number(set.leverage) || 1;
-                    const pnlPct = (p - e) / e * lev * 100;
-                    const pnlUsd = set.capital * lev * (p - e) / e;
-                    const sign = pnlPct >= 0 ? '+' : '';
-                    const pnlColor = pnlPct >= 0 ? 'text-green-400' : 'text-red-400';
-                    const pnlBg   = pnlPct >= 0 ? 'bg-green-900/20 border-green-500/20' : 'bg-red-900/20 border-red-500/20';
-                    pnlText = `<div class="mt-2 flex justify-between items-center text-xs px-3 py-1.5 rounded-lg border ${pnlBg}"><span class="text-slate-400">💰 即時盈虧 <span class="text-slate-600">(${lev}x)</span></span><span class="${pnlColor} font-mono font-bold">${sign}$${Math.abs(pnlUsd).toFixed(2)}</span></div>`;
-                }
-
-                const card = document.createElement('div');
-                const targetHit = set.isHolding && set.target > 0 && Number(mkt.price) >= Number(set.target);
-                card.className = targetHit
-                    ? 'glass-card card-target-hit rounded-2xl p-5 flex flex-col'
-                    : 'glass-card rounded-2xl p-5 border border-slate-800 flex flex-col';
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-4">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="font-bold text-white tracking-tight">${coin}</span>
-                                <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 uppercase">${mkt.src}</span>
-                                ${set.note ? `<span class="text-[10px] text-yellow-400/90 bg-yellow-500/20 px-1.5 py-0.5 rounded border border-yellow-500/30 max-w-[80px] truncate" title="${set.note}">${set.note}</span>` : ''}
-                            </div>
-                            <div class="text-xl font-mono mt-1 ${priceColor}">${formatPrice(mkt.price)}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="${priceColor} text-xs font-bold bg-slate-900/50 px-2 py-1 rounded">${isUp ? '+' : ''}${Number(mkt.change).toFixed(2)}%</div>
-                            <div class="text-[10px] text-slate-600 mt-1.5 uppercase font-mono">Vol: ${Number(mkt.vol/1000).toFixed(0)}K</div>
-                        </div>
-                    </div>
-
-                    <div class="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
-                        <div id="display-${coin}">
-                            <div class="flex justify-between items-center mb-3">
-                                ${getStatusBadge(set)}
-                                ${isAdmin ? `<button onclick="toggleEdit('${coin}')" class="text-slate-500 hover:text-white transition-colors">編輯計畫 ✏️</button>` : ''}
-                            </div>
-                            <div class="grid grid-cols-3 gap-1 text-[10px] text-center">
-                                <div><p class="text-slate-600 mb-1 uppercase">Entry</p><p class="font-mono break-all">${set.entry ? formatPrice(set.entry) : '--'}</p></div>
-                                <div><p class="text-green-500/60 mb-1 uppercase">Target</p><p class="font-mono break-all">${set.target ? formatPrice(set.target) : '--'}</p></div>
-                                <div><p class="text-red-500/60 mb-1 uppercase">Stop</p><p class="font-mono break-all">${set.stopLoss ? formatPrice(set.stopLoss) : '--'}</p></div>
-                            </div>
-                            ${distanceText}
-                            ${pnlText}
-                        </div>
-
-                        <div id="edit-${coin}" class="hidden">
-                            <div class="grid grid-cols-2 gap-3 mb-3">
-                                <div class="col-span-2">
-                                    <label class="text-[10px] text-slate-500 uppercase block mb-1">交易狀態</label>
-                                    <select id="holding-${coin}" class="w-full text-xs p-2">
-                                        <option value="false" ${!set.isHolding ? 'selected' : ''}>觀望中 (Watching)</option>
-                                        <option value="true" ${set.isHolding ? 'selected' : ''}>已進場 (Holding)</option>
-                                    </select>
-                                </div>
-                                <div><label class="text-[10px] text-slate-500 uppercase block mb-1">進場價</label><input type="number" id="entry-${coin}" value="${set.entry || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div>
-                                <div><label class="text-[10px] text-red-500/50 uppercase block mb-1">停損價</label><input type="number" id="sl-${coin}" value="${set.stopLoss || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div>
-                                <div><label class="text-[10px] text-green-500/50 uppercase block mb-1">目標價</label><input type="number" id="target-${coin}" value="${set.target || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div>
-                                <div><label class="text-[10px] text-yellow-500/50 uppercase block mb-1">備註 (十字內)</label><input type="text" id="note-${coin}" value="${set.note || ''}" maxlength="10" placeholder="可選填..." class="w-full text-xs p-2" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; border-radius: 6px;"></div>
-                                <div class="col-span-2 mt-1 pt-3 border-t border-slate-800/50"><p class="text-[10px] text-purple-400/70 uppercase mb-2 font-bold">💰 資金計算</p><div class="grid grid-cols-2 gap-3"><div><label class="text-[10px] text-slate-500 uppercase block mb-1">本金 (USDT)</label><input type="number" id="capital-${coin}" value="${set.capital || ''}" placeholder="0" onfocus="if(parseFloat(this.value)===0)this.value=''" onblur="if(this.value==='')this.value='0'" class="w-full text-xs p-2"></div><div><label class="text-[10px] text-slate-500 uppercase block mb-1">槓桿 (x)</label><input type="number" id="leverage-${coin}" value="${set.leverage || 1}" min="1" max="100" onfocus="if(parseFloat(this.value)===1&&'${set.capital}'==='0')this.value=''" onblur="if(this.value===''||parseFloat(this.value)<1)this.value='1'" class="w-full text-xs p-2"></div></div></div>
-                            </div>
-                            <button onclick="toggleEdit('${coin}')" class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold transition-all shadow-lg shadow-blue-900/20">儲存並記錄時間</button>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4 pt-3 border-t border-slate-800/50 flex justify-between items-center text-[10px]">
-                        <span class="text-slate-700 tracking-widest uppercase">Last Update</span>
-                        <span class="text-slate-500 font-mono">${formatRelativeTime(set.lastManualUpdate)}</span>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        document.getElementById('searchInput').addEventListener('input', renderCards);
-
-        let countdown = 180;
-        setInterval(() => {
-            countdown--;
-            const cdEl = document.getElementById('countdown');
-            if (editingCoin) {
-                cdEl.innerHTML = `<span style="color:#fbbf24">⏸ ${countdown}</span>`;
-            } else {
-                cdEl.style.color = '';
-                cdEl.textContent = countdown;
-            }
-            if (countdown <= 0) { countdown = 180; fetchExchangeData(); }
-        }, 1000);
-
-        fetchExchangeData();
-    </script>
+</script>
 </body>
+
 </html>
