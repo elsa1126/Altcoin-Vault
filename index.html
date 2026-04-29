@@ -670,7 +670,7 @@
 </body>
 <script>
     // === STATE ===
-    const COIN_LIST = ['1INCH', 'A', 'A2Z', 'AB', 'ACH', 'ACT', 'AEVO', 'AGI', 'AI', 'ALGO', 'ALT', 'ANIME', 'APE', 'APT', 'ARPA', 'ATA', 'AWE', 'AXS', 'BABYDOGE', 'BAN', 'BEL', 'BLUR', 'BOME', 'BONK', 'C98', 'CAKE', 'CAT', 'CELR', 'CFX', 'CHR', 'CHZ', 'CKB', 'COS', 'COTI', 'CRO', 'CSPR', 'CTSI', 'CVC', 'DEGO', 'DENT', 'DGB', 'DODO', 'DOGE', 'DOGS', 'DOT', 'DUSK', 'EDU', 'ENA', 'ENJ', 'ENS', 'FET', 'FLM', 'FLOKI', 'FLR', 'FORM', 'FTT', 'FUN', 'GALA', 'GEAR', 'GMT', 'GOAT', 'GRT', 'GT', 'HBAR', 'HFT', 'HIGH', 'HIVE', 'HMSTR', 'HOOK', 'HTX', 'ICP', 'ID', 'IDEX', 'IMX', 'IO', 'IOST', 'IOTA', 'IQ', 'JASMY', 'JOE', 'KAVA', 'KDA', 'KNC', 'LAT', 'LINK', 'LRC', 'LTC', 'LUNC', 'MANA', 'MANTA', 'MAV', 'MBOX', 'MEME', 'MOG', 'NEAR', 'NEIRO', 'NFT', 'NKN', 'NOT', 'OM', 'ONE', 'OXT', 'PENGU', 'PEOPLE', 'PEPE', 'PHA', 'PI', 'PIXEL', 'PNUT', 'POL', 'POND', 'PORTAL', 'PSG', 'PYTH', 'QKC', 'RAD', 'RARE', 'RATS', 'RDNT', 'RSR', 'RUNE', 'SAND', 'SATS', 'SEI', 'SFP', 'SHIB', 'SKL', 'SOL', 'SPELL', 'STRK', 'STX', 'SUI', 'SUSHI', 'SYS', 'TFUEL', 'THETA', 'TKO', 'TLM', 'TRUMP', 'TRX', 'TURBO', 'UNI', 'VOXEL', 'VTHO', 'W', 'WAXP', 'WEN', 'WIN', 'WLD', 'WOO', 'XAI', 'XEC', 'XVG', 'XVS', 'YGG', 'ZBCN', 'ZIL'];
+    let COIN_LIST = ['1INCH', 'A', 'A2Z', 'AB', 'ACH', 'ACT', 'AEVO', 'AGI', 'AI', 'ALGO', 'ALT', 'ANIME', 'APE', 'APT', 'ARPA', 'ATA', 'AWE', 'AXS', 'BABYDOGE', 'BAN', 'BEL', 'BLUR', 'BOME', 'BONK', 'C98', 'CAKE', 'CAT', 'CELR', 'CFX', 'CHR', 'CHZ', 'CKB', 'COS', 'COTI', 'CRO', 'CSPR', 'CTSI', 'CVC', 'DEGO', 'DENT', 'DGB', 'DODO', 'DOGE', 'DOGS', 'DOT', 'DUSK', 'EDU', 'ENA', 'ENJ', 'ENS', 'FET', 'FLM', 'FLOKI', 'FLR', 'FORM', 'FTT', 'FUN', 'GALA', 'GEAR', 'GMT', 'GOAT', 'GRT', 'GT', 'HBAR', 'HFT', 'HIGH', 'HIVE', 'HMSTR', 'HOOK', 'HTX', 'ICP', 'ID', 'IDEX', 'IMX', 'IO', 'IOST', 'IOTA', 'IQ', 'JASMY', 'JOE', 'KAVA', 'KDA', 'KNC', 'LAT', 'LINK', 'LRC', 'LTC', 'LUNC', 'MANA', 'MANTA', 'MAV', 'MBOX', 'MEME', 'MOG', 'NEAR', 'NEIRO', 'NFT', 'NKN', 'NOT', 'OM', 'ONE', 'OXT', 'PENGU', 'PEOPLE', 'PEPE', 'PHA', 'PI', 'PIXEL', 'PNUT', 'POL', 'POND', 'PORTAL', 'PSG', 'PYTH', 'QKC', 'RAD', 'RARE', 'RATS', 'RDNT', 'RSR', 'RUNE', 'SAND', 'SATS', 'SEI', 'SFP', 'SHIB', 'SKL', 'SOL', 'SPELL', 'STRK', 'STX', 'SUI', 'SUSHI', 'SYS', 'TFUEL', 'THETA', 'TKO', 'TLM', 'TRUMP', 'TRX', 'TURBO', 'UNI', 'VOXEL', 'VTHO', 'W', 'WAXP', 'WEN', 'WIN','WLD', 'WOO', 'XAI', 'XEC', 'XVG', 'XVS', 'YGG',  'ZBCN', 'ZIL'];
     const PROXY_URL = 'https://cors.eu.org/';
     let marketData = {};
     let currentSort = 'updateTime';
@@ -701,6 +701,7 @@
     ];
 
     // === INIT SETTINGS ===
+    Object.keys(userSettings).forEach(k => { if (k !== '__GLOBAL__' && !COIN_LIST.includes(k.toUpperCase())) { COIN_LIST.push(k.toUpperCase()); } });
     COIN_LIST.forEach(coin => {
         if (!userSettings[coin]) userSettings[coin] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '', entrySide: null, capital: 0, leverage: 1 };
         else {
@@ -732,7 +733,7 @@
     async function guestRefresh() { const btn = document.getElementById('guest-refresh-btn'); if (btn) { btn.innerText = '...'; btn.disabled = true } saveSyncConfig(); if (!cloudBin) { alert('尚無 Bin ID！'); if (btn) { btn.innerText = '🔄'; btn.disabled = false } return } await fetchFromCloud(false); if (btn) { btn.innerText = '🔄'; btn.disabled = false } }
     async function createCloudBin() { saveSyncConfig(); if (!cloudKey) return alert("請先登入管理員！"); try { const r = await fetch("https://api.jsonbin.io/v3/b", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey, 'X-Bin-Name': 'AltcoinVaultSync', 'X-Bin-Private': 'false' }, body: JSON.stringify(userSettings) }); const d = await r.json(); if (d.record) { cloudBin = d.metadata.id; document.getElementById('sync-bin').value = cloudBin; saveSyncConfig(); alert("✅ Bin ID: " + cloudBin) } else alert("❌ " + JSON.stringify(d)) } catch (e) { alert("❌ " + e) } }
     async function pushToCloud(manual = false) { if (!cloudKey || !cloudBin) { if (manual) alert("請先建立區塊！"); return } const btn = document.getElementById('push-btn'); if (manual && btn) btn.innerText = "上傳中..."; try { const r = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey }, body: JSON.stringify(userSettings) }); if (r.status === 401 || r.status === 403) { alert("授權錯誤！"); toggleAdminLogin() } else if (r.ok && manual) alert("✅ 同步成功！") } catch (e) { if (manual) alert("❌ " + e.message) } if (manual && btn) btn.innerText = "強制上傳雲端 ⬆️" }
-    async function fetchFromCloud(silent = false) { if (!silent) saveSyncConfig(); if (!cloudBin) { if (!silent) showToast('請填寫 Bin ID！', 'error'); return } try { const r = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin + "/latest", { method: 'GET', headers: { 'X-Master-Key': cloudKey || DEFAULT_API_KEY } }); const d = await r.json(); if (d.record) { const c = d.record; COIN_LIST.forEach(coin => { if (c[coin]) userSettings[coin] = { entry: c[coin].entry || 0, target: c[coin].target || 0, stopLoss: c[coin].stopLoss || 0, isHolding: c[coin].isHolding || false, lastManualUpdate: c[coin].lastManualUpdate || 0, note: c[coin].note || '', entrySide: c[coin].entrySide || null, capital: c[coin].capital || 0, leverage: c[coin].leverage || 1 } }); if(c['__GLOBAL__']){ userSettings['__GLOBAL__'] = c['__GLOBAL__']; gdRealized = c['__GLOBAL__'].realizedPnL || 0; localStorage.setItem('gdRealized', gdRealized); const rEl = document.getElementById('gd-realized'); if(rEl) rEl.value = gdRealized; if(typeof gdUpdate === 'function') gdUpdate(); } saveSettings(); renderCards(); if (!silent) showToast("✅ 已讀取雲端資料！") } else { if (!silent) showToast("❌ " + (d.message || JSON.stringify(d)), 'error') } } catch (e) { if (!silent) showToast("❌ " + e.message, 'error') } }
+    async function fetchFromCloud(silent = false) { if (!silent) saveSyncConfig(); if (!cloudBin) { if (!silent) showToast('請填寫 Bin ID！', 'error'); return } try { const r = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin + "/latest", { method: 'GET', headers: { 'X-Master-Key': cloudKey || DEFAULT_API_KEY } }); const d = await r.json(); if (d.record) { const c = d.record; Object.keys(c).forEach(k => { if (k !== '__GLOBAL__' && !COIN_LIST.includes(k.toUpperCase())) { COIN_LIST.push(k.toUpperCase()); userSettings[k.toUpperCase()] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '', entrySide: null, capital: 0, leverage: 1 }; } }); COIN_LIST.forEach(coin => { const k = c[coin] || c[coin.toLowerCase()]; if (k) userSettings[coin] = { entry: k.entry || 0, target: k.target || 0, stopLoss: k.stopLoss || 0, isHolding: k.isHolding || false, lastManualUpdate: k.lastManualUpdate || 0, note: k.note || '', entrySide: k.entrySide || null, capital: k.capital || 0, leverage: k.leverage || 1 } }); if(c['__GLOBAL__']){ userSettings['__GLOBAL__'] = c['__GLOBAL__']; gdRealized = c['__GLOBAL__'].realizedPnL || 0; localStorage.setItem('gdRealized', gdRealized); const rEl = document.getElementById('gd-realized'); if(rEl) rEl.value = gdRealized; if(typeof gdUpdate === 'function') gdUpdate(); } saveSettings(); fetchExchangeData(); if (!silent) showToast("✅ 已讀取雲端資料！") } else { if (!silent) showToast("❌ " + (d.message || JSON.stringify(d)), 'error') } } catch (e) { if (!silent) showToast("❌ " + e.message, 'error') } }
 
     // === AUTO ENTRY ===
     function checkAutoEntry() { let trig = []; COIN_LIST.forEach(coin => { const s = userSettings[coin], m = marketData[coin]; if (!s || !m || s.isHolding || !s.entry || !s.entrySide) return; const p = Number(m.price), e = Number(s.entry); if (p <= 0 || e <= 0) return; let go = false; if (s.entrySide === 'breakout' && p >= e) go = true; if (s.entrySide === 'dip' && p <= e) go = true; if (go) { userSettings[coin].isHolding = true; userSettings[coin].entrySide = null; userSettings[coin].lastManualUpdate = Date.now(); trig.push(coin) } }); if (trig.length > 0) { saveSettings(); pushToCloud(false); if (!editingCoin) renderCards(); trig.forEach(c => showToast(`🚀 ${c} 已自動進場！`)) } }
@@ -812,14 +813,34 @@
         const coin = selectedCoin; if (!coin) return;
         const newEntry = parseFloat(document.getElementById('edit-entry').value) || 0;
         const newHolding = document.getElementById('edit-holding').value === 'true';
+        const newTarget = parseFloat(document.getElementById('edit-target').value) || 0;
+        const newSl = parseFloat(document.getElementById('edit-sl').value) || 0;
+        const newNote = document.getElementById('edit-note').value || '';
+        const newCapital = parseFloat(document.getElementById('edit-capital').value) || 0;
+        const newLeverage = parseFloat(document.getElementById('edit-leverage').value) || 1;
+        
+        let needsTimeUpdate = false;
+        if (userSettings[coin].entry !== newEntry ||
+            userSettings[coin].target !== newTarget ||
+            userSettings[coin].stopLoss !== newSl ||
+            userSettings[coin].isHolding !== newHolding ||
+            userSettings[coin].capital !== newCapital ||
+            userSettings[coin].leverage !== newLeverage) {
+            needsTimeUpdate = true;
+        }
+
         userSettings[coin].entry = newEntry;
-        userSettings[coin].target = parseFloat(document.getElementById('edit-target').value) || 0;
-        userSettings[coin].stopLoss = parseFloat(document.getElementById('edit-sl').value) || 0;
+        userSettings[coin].target = newTarget;
+        userSettings[coin].stopLoss = newSl;
         userSettings[coin].isHolding = newHolding;
-        userSettings[coin].note = document.getElementById('edit-note').value || '';
-        userSettings[coin].capital = parseFloat(document.getElementById('edit-capital').value) || 0;
-        userSettings[coin].leverage = parseFloat(document.getElementById('edit-leverage').value) || 1;
-        userSettings[coin].lastManualUpdate = Date.now();
+        userSettings[coin].note = newNote;
+        userSettings[coin].capital = newCapital;
+        userSettings[coin].leverage = newLeverage;
+        
+        if (needsTimeUpdate) {
+            userSettings[coin].lastManualUpdate = Date.now();
+        }
+
         if (!newHolding && newEntry > 0) { const cp = Number((marketData[coin] || {}).price || 0); if (cp > 0 && cp < newEntry) userSettings[coin].entrySide = 'breakout'; else if (cp > 0 && cp > newEntry) userSettings[coin].entrySide = 'dip'; else userSettings[coin].entrySide = null } else { userSettings[coin].entrySide = null }
         editingCoin = null; saveSettings(); closeBottomSheet(); renderCards();
         const ind = document.getElementById('sync-status'); const ot = ind.innerText; const oc = ind.className;
@@ -844,7 +865,7 @@
     function renderCards() {
         const container = document.getElementById('coin-container');
         const searchVal = (document.getElementById('searchInput').value || '').toUpperCase();
-        let list = COIN_LIST.filter(c => c.includes(searchVal));
+        let list = COIN_LIST.filter(c => c.toUpperCase().includes(searchVal));
         // Filter
         if (currentFilter === 'holding') list = list.filter(c => (userSettings[c] || {}).isHolding);
         if (currentFilter === 'watching') list = list.filter(c => !(userSettings[c] || {}).isHolding);
