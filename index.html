@@ -151,7 +151,7 @@
             visibility: visible
         }
 
-        #side-panel {
+        #side-panel, #notif-panel {
             position: fixed;
             top: 0;
             right: 0;
@@ -166,9 +166,35 @@
             padding: calc(env(safe-area-inset-top) + 24px) 20px calc(env(safe-area-inset-bottom) + 24px) 20px;
         }
 
-        #side-panel.open {
+        #side-panel.open, #notif-panel.open {
             transform: translateX(0)
         }
+
+        .notif-badge {
+            position: absolute; top: -2px; right: -2px;
+            min-width: 16px; height: 16px;
+            background: var(--red); color: #fff;
+            border-radius: 99px; font-size: 9px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            padding: 0 4px; line-height: 1;
+            border: 2px solid var(--bg-root);
+            pointer-events: none;
+        }
+        .notif-badge:empty, .notif-badge[data-count="0"] { display: none; }
+
+        .notif-item {
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            transition: all .15s ease;
+        }
+        .notif-item:hover { background: rgba(255,255,255,0.04); }
+        .notif-item + .notif-item { margin-top: 8px; }
+        .notif-item .notif-emoji { font-size: 18px; line-height: 1; }
+        .notif-item .notif-title { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+        .notif-item .notif-body { font-size: 10px; color: var(--text-secondary); margin-top: 3px; line-height: 1.5; }
+        .notif-item .notif-time { font-size: 9px; color: var(--text-muted); margin-top: 5px; font-family: monospace; }
 
         #bottom-sheet {
             position: fixed;
@@ -531,6 +557,7 @@
 
     <!-- Overlays -->
     <div id="side-overlay" class="overlay" onclick="toggleSidePanel()"></div>
+    <div id="notif-overlay" class="overlay" onclick="toggleNotifPanel()"></div>
     <div id="sheet-overlay" class="overlay" onclick="closeBottomSheet()"></div>
     <div id="sort-overlay" class="overlay" style="z-index:44" onclick="toggleSortMenu()"></div>
 
@@ -584,6 +611,22 @@
         </div>
     </div>
 
+    <!-- Notification Center Panel (通知中心) -->
+    <div id="notif-panel">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold flex items-center gap-2">🔔 通知中心</h2>
+            <button onclick="toggleNotifPanel()"
+                class="text-[#525C6F] hover:text-white text-xl transition">&times;</button>
+        </div>
+        <div class="flex items-center justify-between mb-4">
+            <p class="text-[10px] text-[#525C6F] font-semibold uppercase tracking-wide">事件紀錄</p>
+            <button onclick="clearNotifLog()" class="text-[9px] text-red-400/60 hover:text-red-400 transition font-medium px-2 py-1 rounded-md hover:bg-red-500/10">清除全部</button>
+        </div>
+        <div id="notif-list" class="space-y-0">
+            <div class="py-12 text-center text-[#525C6F] text-xs">暫無通知紀錄</div>
+        </div>
+    </div>
+
     <!-- Bottom Sheet -->
     <div id="bottom-sheet">
         <div class="sheet-handle"></div>
@@ -629,6 +672,15 @@
                     <span class="text-[10px] text-[#525C6F] font-mono"><span id="countdown"
                             class="text-[#638AFF]">180</span>s</span>
                 </div>
+                <button onclick="toggleNotifPanel()" id="notif-bell-btn"
+                    class="relative w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-[#8B95A8] hover:text-white hover:bg-white/[0.1] transition">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 01-3.46 0" />
+                    </svg>
+                    <span id="notif-badge" class="notif-badge"></span>
+                </button>
                 <button onclick="toggleSidePanel()"
                     class="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-[#8B95A8] hover:text-white hover:bg-white/[0.1] transition">
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
@@ -740,8 +792,89 @@
     async function pushToCloud(manual = false) { if (!cloudKey || !cloudBin) { if (manual) alert("請先建立區塊！"); return } const btn = document.getElementById('push-btn'); if (manual && btn) btn.innerText = "上傳中..."; try { const r = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': cloudKey }, body: JSON.stringify(userSettings) }); if (r.status === 401 || r.status === 403) { alert("授權錯誤！"); toggleAdminLogin() } else if (r.ok && manual) alert("✅ 同步成功！") } catch (e) { if (manual) alert("❌ " + e.message) } if (manual && btn) btn.innerText = "強制上傳雲端 ⬆️" }
     async function fetchFromCloud(silent = false) { if (!silent) saveSyncConfig(); if (!cloudBin) { if (!silent) showToast('請填寫 Bin ID！', 'error'); return } try { const r = await fetch("https://api.jsonbin.io/v3/b/" + cloudBin + "/latest", { method: 'GET', headers: { 'X-Master-Key': cloudKey || DEFAULT_API_KEY } }); const d = await r.json(); if (d.record) { const c = d.record; Object.keys(c).forEach(k => { if (k !== '__GLOBAL__' && !COIN_LIST.includes(k.toUpperCase())) { COIN_LIST.push(k.toUpperCase()); userSettings[k.toUpperCase()] = { entry: 0, target: 0, stopLoss: 0, isHolding: false, lastManualUpdate: 0, note: '', entrySide: null, capital: 0, leverage: 1, manualStatus: null }; } }); COIN_LIST.forEach(coin => { const k = c[coin] || c[coin.toLowerCase()]; if (k) userSettings[coin] = { entry: k.entry || 0, target: k.target || 0, stopLoss: k.stopLoss || 0, isHolding: k.isHolding || false, lastManualUpdate: k.lastManualUpdate || 0, note: k.note || '', entrySide: k.entrySide || null, capital: k.capital || 0, leverage: k.leverage || 1, manualStatus: k.manualStatus || null } }); if(c['__GLOBAL__']){ userSettings['__GLOBAL__'] = c['__GLOBAL__']; gdRealized = c['__GLOBAL__'].realizedPnL || 0; localStorage.setItem('gdRealized', gdRealized); const rEl = document.getElementById('gd-realized'); if(rEl) rEl.value = gdRealized; if(typeof gdUpdate === 'function') gdUpdate(); } saveSettings(); fetchExchangeData(); if (!silent) showToast("✅ 已讀取雲端資料！") } else { if (!silent) showToast("❌ " + (d.message || JSON.stringify(d)), 'error') } } catch (e) { if (!silent) showToast("❌ " + e.message, 'error') } }
 
-    // === AUTO ENTRY ===
-    function checkAutoEntry() { let trig = []; COIN_LIST.forEach(coin => { const s = userSettings[coin], m = marketData[coin]; if (!s || !m || s.isHolding || !s.entry || !s.entrySide) return; const p = Number(m.price), e = Number(s.entry); if (p <= 0 || e <= 0) return; let go = false; if (s.entrySide === 'breakout' && p >= e) go = true; if (s.entrySide === 'dip' && p <= e) go = true; if (go) { userSettings[coin].isHolding = true; userSettings[coin].entrySide = null; userSettings[coin].lastManualUpdate = Date.now(); trig.push(coin) } }); if (trig.length > 0) { saveSettings(); pushToCloud(false); if (!editingCoin) renderCards(); trig.forEach(c => showToast(`🚀 ${c} 已自動進場！`)) } }
+    // === AUTO ENTRY + TARGET + STOPLOSS ===
+    // Track already-notified events to avoid spamming
+    let notifiedEvents = JSON.parse(localStorage.getItem('notifiedEvents') || '{}');
+    function markNotified(coin, event) {
+        notifiedEvents[`${coin}_${event}`] = Date.now();
+        localStorage.setItem('notifiedEvents', JSON.stringify(notifiedEvents));
+    }
+    function wasNotified(coin, event) {
+        const ts = notifiedEvents[`${coin}_${event}`];
+        if (!ts) return false;
+        return (Date.now() - ts) < 86400000;
+    }
+
+    function checkAutoEntry() {
+        let entryTrig = [], targetTrig = [], slTrig = [];
+        COIN_LIST.forEach(coin => {
+            const s = userSettings[coin], m = marketData[coin];
+            if (!s || !m) return;
+            const p = Number(m.price), e = Number(s.entry), t = Number(s.target), sl = Number(s.stopLoss);
+            if (p <= 0) return;
+
+            // --- Auto Entry ---
+            if (!s.isHolding && s.entry && s.entrySide && e > 0) {
+                let go = false;
+                if (s.entrySide === 'breakout' && p >= e) go = true;
+                if (s.entrySide === 'dip' && p <= e) go = true;
+                if (go) {
+                    userSettings[coin].isHolding = true;
+                    userSettings[coin].entrySide = null;
+                    userSettings[coin].lastManualUpdate = Date.now();
+                    markNotified(coin, 'entry');
+                    entryTrig.push(coin);
+                }
+            }
+
+            // --- Target Reached ---
+            if (s.isHolding && t > 0 && p >= t && s.manualStatus !== 'target_reached' && !wasNotified(coin, 'target')) {
+                userSettings[coin].manualStatus = 'target_reached';
+                userSettings[coin].lastManualUpdate = Date.now();
+                markNotified(coin, 'target');
+                targetTrig.push(coin);
+            }
+
+            // --- Stop Loss Hit ---
+            if (s.isHolding && sl > 0 && p <= sl && s.manualStatus !== 'no_market' && !wasNotified(coin, 'stoploss')) {
+                userSettings[coin].isHolding = false;
+                userSettings[coin].entrySide = null;
+                userSettings[coin].lastManualUpdate = Date.now();
+                markNotified(coin, 'stoploss');
+                slTrig.push(coin);
+            }
+        });
+
+        const anyTrig = entryTrig.length + targetTrig.length + slTrig.length;
+        if (anyTrig > 0) {
+            saveSettings(); pushToCloud(false); if (!editingCoin) renderCards();
+        }
+
+        // Send toast notifications & log to notification center
+        entryTrig.forEach(c => {
+            const p = formatPrice(marketData[c]?.price);
+            const title = `${c} 自動進場`;
+            const body = `現價: ${p}\n已自動進場，請注意持倉風險。`;
+            showToast(`🚀 ${title}`);
+            addNotifLog('🚀', title, body, 'entry');
+        });
+        targetTrig.forEach(c => {
+            const p = formatPrice(marketData[c]?.price);
+            const t = formatPrice(userSettings[c]?.target);
+            const title = `${c} 已達目標價`;
+            const body = `現價: ${p} ≥ 目標: ${t}\n已自動標記為「已達標」。`;
+            showToast(`🎯 ${title}`);
+            addNotifLog('🎯', title, body, 'target');
+        });
+        slTrig.forEach(c => {
+            const p = formatPrice(marketData[c]?.price);
+            const sl = formatPrice(userSettings[c]?.stopLoss);
+            const title = `${c} 觸及停損`;
+            const body = `現價: ${p} ≤ 停損: ${sl}\n已自動清除持倉狀態。`;
+            showToast(`🛑 ${title}`);
+            addNotifLog('🛑', title, body, 'stoploss');
+        });
+    }
 
     // === EXPORT/IMPORT ===
     function exportSettings() { const d = JSON.stringify(userSettings, null, 2), b = new Blob([d], { type: 'application/json' }), u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; const t = new Date(); a.download = `altcoin_vault_${t.getFullYear()}${String(t.getMonth() + 1).padStart(2, '0')}${String(t.getDate()).padStart(2, '0')}.json`; a.click(); URL.revokeObjectURL(u); showToast('✅ 備份已匯出！') }
@@ -750,8 +883,91 @@
     // === API ===
     async function fetchExchangeData() { try { const [pR, gR, oR] = await Promise.all([fetch(PROXY_URL + encodeURIComponent('https://api.pionex.com/api/v1/market/tickers')), fetch(PROXY_URL + encodeURIComponent('https://api.gateio.ws/api/v4/spot/tickers')), fetch(PROXY_URL + encodeURIComponent('https://www.okx.com/api/v5/market/tickers?instType=SPOT'))]); const pD = await pR.json(), gD = await gR.json(), oD = await oR.json(); let pM = {}, gM = {}, oM = {}; if (pD.data) pD.data.tickers.forEach(t => { if (t.symbol.endsWith('_USDT')) pM[t.symbol.split('_')[0]] = { price: t.close, change: t.change !== undefined ? t.change * 100 : ((t.close - t.open) / t.open) * 100, vol: t.volume, src: 'Pionex' } }); if (Array.isArray(gD)) gD.forEach(t => { if (t.currency_pair.endsWith('_USDT')) gM[t.currency_pair.split('_')[0]] = { price: t.last, change: t.change_percentage, vol: t.base_volume, src: 'Gate' } }); if (oD.data) oD.data.forEach(t => { if (t.instId.endsWith('-USDT')) oM[t.instId.split('-')[0]] = { price: t.last, change: ((t.last - t.open24h) / t.open24h) * 100, vol: t.vol24h, src: 'OKX' } }); marketData = {}; COIN_LIST.forEach(coin => { marketData[coin] = pM[coin] || gM[coin] || oM[coin] || { price: 0, change: 0, vol: 0, src: '--' } }); if (!editingCoin) renderCards(); checkAutoEntry() } catch (e) { console.error("更新失敗:", e); document.getElementById('status-indicator').innerHTML = '<span class="text-red-500 text-[10px]">連線異常</span>' } }
 
+    // === NOTIFICATION LOG ===
+    let notifLog = JSON.parse(localStorage.getItem('notifLog') || '[]');
+
+    function addNotifLog(emoji, title, body, type) {
+        const entry = { id: Date.now(), emoji, title, body, type, time: Date.now(), read: false };
+        notifLog.unshift(entry);
+        if (notifLog.length > 100) notifLog = notifLog.slice(0, 100);
+        localStorage.setItem('notifLog', JSON.stringify(notifLog));
+        updateNotifBadge();
+        renderNotifList();
+    }
+
+    function updateNotifBadge() {
+        const badge = document.getElementById('notif-badge');
+        if (!badge) return;
+        const unread = notifLog.filter(n => !n.read).length;
+        badge.textContent = unread > 0 ? (unread > 99 ? '99+' : unread) : '';
+        badge.setAttribute('data-count', unread);
+    }
+
+    function renderNotifList() {
+        const container = document.getElementById('notif-list');
+        if (!container) return;
+        if (notifLog.length === 0) {
+            container.innerHTML = '<div class="py-12 text-center text-[#525C6F] text-xs">暫無通知紀錄</div>';
+            return;
+        }
+        container.innerHTML = '';
+        let lastDate = '';
+        notifLog.forEach(n => {
+            const d = new Date(n.time);
+            const dateStr = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+            if (dateStr !== lastDate) {
+                lastDate = dateStr;
+                const dateEl = document.createElement('div');
+                dateEl.className = 'text-[9px] text-[#525C6F] font-semibold uppercase tracking-wide py-2 mt-2 border-b border-white/[0.04]';
+                dateEl.textContent = dateStr;
+                container.appendChild(dateEl);
+            }
+            const item = document.createElement('div');
+            item.className = 'notif-item' + (n.read ? '' : ' border-l-2 !border-l-[#638AFF]');
+            const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}`;
+            let typeColor = 'var(--text-secondary)';
+            if (n.type === 'entry') typeColor = 'var(--accent)';
+            else if (n.type === 'target') typeColor = 'var(--green)';
+            else if (n.type === 'stoploss') typeColor = 'var(--red)';
+            item.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <span class="notif-emoji">${n.emoji}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="notif-title" style="color:${typeColor}">${n.title}</div>
+                        <div class="notif-body">${(n.body || '').replace(/\n/g, '<br>')}</div>
+                        <div class="notif-time">${timeStr}</div>
+                    </div>
+                </div>`;
+            container.appendChild(item);
+        });
+    }
+
+    function clearNotifLog() {
+        if (!confirm('確定要清除所有通知紀錄嗎？')) return;
+        notifLog = [];
+        localStorage.setItem('notifLog', JSON.stringify(notifLog));
+        updateNotifBadge();
+        renderNotifList();
+        showToast('✅ 通知紀錄已清除');
+    }
+
+    function markAllNotifRead() {
+        notifLog.forEach(n => n.read = true);
+        localStorage.setItem('notifLog', JSON.stringify(notifLog));
+        updateNotifBadge();
+        renderNotifList();
+    }
+
     // === UI FUNCTIONS ===
     function toggleSidePanel() { document.getElementById('side-panel').classList.toggle('open'); document.getElementById('side-overlay').classList.toggle('active') }
+    function toggleNotifPanel() {
+        const panel = document.getElementById('notif-panel');
+        const overlay = document.getElementById('notif-overlay');
+        const isOpening = !panel.classList.contains('open');
+        panel.classList.toggle('open');
+        overlay.classList.toggle('active');
+        if (isOpening) { markAllNotifRead(); renderNotifList(); }
+    }
     function toggleSortMenu() { document.getElementById('sort-menu').classList.toggle('open'); document.getElementById('sort-overlay').classList.toggle('active') }
     function toggleSearch() { const s = document.getElementById('pill-search'), b = document.getElementById('pill-search-btn'), f = document.getElementById('pill-filter-label'), sb = document.getElementById('pill-sort-btn'); if (s.classList.contains('active')) { s.classList.remove('active'); b.style.display = ''; f.style.display = ''; sb.style.display = ''; document.getElementById('searchInput').value = ''; renderCards() } else { s.classList.add('active'); b.style.display = 'none'; f.style.display = 'none'; sb.style.display = 'none'; document.getElementById('searchInput').focus() } }
     function cycleFilter() { const fs = ['all', 'holding', 'watching', 'target_reached', 'no_market']; const i = (fs.indexOf(currentFilter) + 1) % 5; setFilter(fs[i]) }
@@ -1131,6 +1347,9 @@
         }
         if (cloudBin && !isAdmin && Object.keys(userSettings).every(k => !userSettings[k].target && !userSettings[k].entry)) { fetchFromCloud(true) }
         gdInit();
+        // Init notification center
+        updateNotifBadge();
+        renderNotifList();
     }, 100);
 
     let countdown = 180;
